@@ -65,40 +65,7 @@ class UpdateDownloadService : Service() {
             File(File(context.cacheDir, "updates").apply { mkdirs() }, name)
 
         fun deleteStoredCopy(context: Context, name: String): Boolean {
-            if (name.isBlank()) return false
-            val folder = SettingsCache.autoBackup.folderUri
-            if (folder.isBlank()) return false
-            return try {
-                val tree = Uri.parse(folder)
-                val resolver = context.contentResolver
-                val children = DocumentsContract.buildChildDocumentsUriUsingTree(
-                    tree,
-                    DocumentsContract.getTreeDocumentId(tree)
-                )
-                var found: Uri? = null
-                resolver.query(
-                    children,
-                    arrayOf(
-                        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                        DocumentsContract.Document.COLUMN_DISPLAY_NAME
-                    ),
-                    null,
-                    null,
-                    null
-                )?.use { cursor ->
-                    while (cursor.moveToNext()) {
-                        if (cursor.getString(1) == name) {
-                            found = DocumentsContract.buildDocumentUriUsingTree(tree, cursor.getString(0))
-                            break
-                        }
-                    }
-                }
-                val document = found ?: return false
-                DocumentsContract.deleteDocument(resolver, document)
-            } catch (t: Throwable) {
-                StartupLog.event(context, "update: the stored copy could not be removed (${t.message})")
-                false
-            }
+            return false
         }
     }
 
@@ -228,33 +195,7 @@ class UpdateDownloadService : Service() {
     }
 
     private fun copyToBackupFolder(source: File, name: String): Boolean {
-        val folder = SettingsCache.autoBackup.folderUri
-        if (folder.isBlank()) return false
-        return try {
-            val tree = Uri.parse(folder)
-            val resolver = contentResolver
-            val existing = findChild(resolver, tree, name)
-            val parent = DocumentsContract.buildDocumentUriUsingTree(
-                tree,
-                DocumentsContract.getTreeDocumentId(tree)
-            )
-            val target = existing ?: DocumentsContract.createDocument(
-                resolver,
-                parent,
-                "application/vnd.android.package-archive",
-                name
-            ) ?: return false
-            resolver.openOutputStream(target, "wt")?.use { output ->
-                source.inputStream().use { input -> input.copyTo(output) }
-            } ?: return false
-            true
-        } catch (t: Throwable) {
-            StartupLog.event(
-                applicationContext,
-                "update: the installer could not be copied to the backup folder (${t.message})"
-            )
-            false
-        }
+        return false
     }
 
     private fun findChild(resolver: ContentResolver, tree: Uri, name: String): Uri? = try {

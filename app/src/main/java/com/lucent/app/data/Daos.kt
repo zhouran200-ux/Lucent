@@ -151,136 +151,6 @@ interface NoteVersionDao {
     suspend fun clearAll()
 }
 
-@Dao
-interface TaskVersionDao {
-    @Query("SELECT * FROM task_versions WHERE taskId = :taskId ORDER BY savedAt DESC")
-    fun getForTask(taskId: Long): Flow<List<TaskVersion>>
-
-    @Query("SELECT * FROM task_versions WHERE taskId = :taskId ORDER BY savedAt DESC")
-    suspend fun getForTaskOnce(taskId: Long): List<TaskVersion>
-
-    @Query("SELECT * FROM task_versions ORDER BY savedAt DESC")
-    suspend fun getAllOnce(): List<TaskVersion>
-
-    @Query("SELECT COUNT(*) FROM task_versions WHERE taskId = :taskId")
-    suspend fun countForTask(taskId: Long): Int
-
-    @Insert
-    suspend fun insert(version: TaskVersion): Long
-
-    @Delete
-    suspend fun delete(version: TaskVersion)
-
-    @Query("DELETE FROM task_versions WHERE taskId = :taskId")
-    suspend fun deleteForTask(taskId: Long)
-
-    @Query("DELETE FROM task_versions WHERE id = :id")
-    suspend fun deleteById(id: Long)
-
-    @Query(
-        "DELETE FROM task_versions WHERE taskId = :taskId AND id NOT IN (" +
-            "SELECT id FROM task_versions WHERE taskId = :taskId ORDER BY savedAt DESC LIMIT :keep)"
-    )
-    suspend fun trimTo(taskId: Long, keep: Int)
-
-    @Query("DELETE FROM task_versions WHERE taskId NOT IN (SELECT id FROM tasks)")
-    suspend fun pruneOrphaned()
-
-    @Query("DELETE FROM task_versions")
-    suspend fun clearAll()
-}
-
-@Dao
-interface TaskDao {
-    @Query("SELECT * FROM tasks ORDER BY createdAt DESC")
-    fun getAll(): Flow<List<Task>>
-
-    @Query("SELECT * FROM tasks ORDER BY createdAt DESC")
-    suspend fun getAllOnce(): List<Task>
-
-    @Query("SELECT * FROM tasks WHERE id = :id")
-    suspend fun getByIdOnce(id: Long): Task?
-
-    @Query("SELECT * FROM tasks WHERE id IN (:ids)")
-    suspend fun getByIds(ids: List<Long>): List<Task>
-
-    @Query(
-        """
-        SELECT * FROM tasks
-        WHERE (:text = ''
-                OR title LIKE '%' || :text || '%'
-                OR notes LIKE '%' || :text || '%'
-                OR subtasks LIKE '%' || :text || '%')
-          AND isDraft = 0
-          AND hidden = 0
-          AND (:done = -1 OR isDone = :done)
-          AND (:trashed = -1
-                OR (:trashed = 1 AND trashedAt IS NOT NULL)
-                OR (:trashed = 0 AND trashedAt IS NULL))
-          AND (:minPriority = -1 OR priority >= :minPriority)
-          AND (:dueBefore = -1 OR (dueAt IS NOT NULL AND dueAt <= :dueBefore))
-          AND (:dueAfter = -1 OR (dueAt IS NOT NULL AND dueAt >= :dueAfter))
-        ORDER BY pinned DESC, priority DESC, COALESCE(dueAt, 9223372036854775807) ASC, createdAt DESC
-        LIMIT :limit
-        """
-    )
-    suspend fun searchTasks(
-        text: String,
-        done: Int,
-        trashed: Int,
-        minPriority: Int,
-        dueBefore: Long,
-        dueAfter: Long,
-        limit: Int
-    ): List<Task>
-
-    @Query("SELECT * FROM tasks WHERE isDone = 0 AND trashedAt IS NULL AND isDraft = 0 AND hidden = 0 ORDER BY createdAt DESC")
-    fun getActive(): Flow<List<Task>>
-
-    @Query("SELECT COUNT(*) FROM tasks WHERE isDone = 0 AND trashedAt IS NULL AND isDraft = 0 AND hidden = 0")
-    suspend fun activeCountOnce(): Int
-
-    @Query("SELECT * FROM tasks WHERE isDone = 1 AND trashedAt IS NULL AND isDraft = 0 AND hidden = 0 ORDER BY COALESCE(completedAt, createdAt) DESC")
-    fun getCompleted(): Flow<List<Task>>
-
-    @Query("SELECT * FROM tasks WHERE trashedAt IS NOT NULL AND isDraft = 0 ORDER BY trashedAt DESC")
-    fun getTrashed(): Flow<List<Task>>
-
-    @Query("SELECT * FROM tasks WHERE isDraft = 1 AND trashedAt IS NULL ORDER BY COALESCE(draftSavedAt, createdAt) DESC")
-    fun getDrafts(): Flow<List<Task>>
-
-    @Query("SELECT * FROM tasks WHERE hidden = 1 AND isDraft = 0 AND trashedAt IS NULL ORDER BY createdAt DESC")
-    fun getHidden(): Flow<List<Task>>
-
-    @Query("SELECT COUNT(*) FROM tasks WHERE isDraft = 1 AND trashedAt IS NULL")
-    suspend fun draftCountOnce(): Int
-
-    @Query("SELECT COALESCE(MAX(manualOrder), 0) FROM tasks")
-    suspend fun maxManualOrderOnce(): Int
-
-    @Insert
-    suspend fun insert(task: Task): Long
-
-    @Update
-    suspend fun update(task: Task)
-
-    @Query("UPDATE tasks SET pinned = :pinned WHERE id = :id")
-    suspend fun setPinned(id: Long, pinned: Boolean)
-
-    @Query("UPDATE tasks SET manualOrder = :order WHERE id = :id")
-    suspend fun setManualOrder(id: Long, order: Int)
-
-    @Delete
-    suspend fun delete(task: Task)
-
-    @Query("DELETE FROM tasks")
-    suspend fun clearAll()
-
-    @SkipQueryVerification
-    @Query("SELECT * FROM tasks_fts WHERE tasks_fts = 'rebuild'")
-    suspend fun rebuildFts(): List<String>
-}
-
 data class ConversationContent(
     val conversationId: Long,
     val content: String?
@@ -347,20 +217,11 @@ data class NotebookCount(val notebookId: Long, val count: Int)
 
 @Dao
 interface NotebookDao {
-    @Query("SELECT * FROM notebooks WHERE trashedAt IS NULL ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM notebooks ORDER BY updatedAt DESC")
     fun getAll(): Flow<List<Notebook>>
 
-    @Query("SELECT * FROM notebooks WHERE trashedAt IS NULL ORDER BY updatedAt DESC")
-    suspend fun getAllOnce(): List<Notebook>
-
     @Query("SELECT * FROM notebooks ORDER BY updatedAt DESC")
-    suspend fun getAllIncludingTrashedOnce(): List<Notebook>
-
-    @Query("SELECT * FROM notebooks WHERE trashedAt IS NOT NULL ORDER BY trashedAt DESC")
-    fun getTrashed(): Flow<List<Notebook>>
-
-    @Query("SELECT * FROM notebooks WHERE trashedAt IS NOT NULL ORDER BY trashedAt DESC")
-    suspend fun getTrashedOnce(): List<Notebook>
+    suspend fun getAllOnce(): List<Notebook>
 
     @Query("SELECT * FROM notebooks WHERE id = :id")
     suspend fun getByIdOnce(id: Long): Notebook?
@@ -401,9 +262,6 @@ interface NotebookDao {
     @Query("DELETE FROM notebooks WHERE id = :id")
     suspend fun deleteById(id: Long)
 
-    @Query("DELETE FROM notebooks WHERE trashedAt IS NOT NULL AND trashedAt < :cutoff")
-    suspend fun purgeTrashedBefore(cutoff: Long)
-
     @Query("DELETE FROM notebooks")
     suspend fun clearAll()
 
@@ -411,15 +269,10 @@ interface NotebookDao {
     suspend fun clearAllItems()
 }
 
-suspend fun NotebookDao.pruneOrphans(noteDao: NoteDao, taskDao: TaskDao) {
+suspend fun NotebookDao.pruneOrphans(noteDao: NoteDao) {
     val noteMembers = getItemsByKindOnce(NotebookItem.KIND_NOTE)
     if (noteMembers.isNotEmpty()) {
         val alive = noteDao.getByIds(noteMembers.map { it.itemId }.toSet().toList()).map { it.id }.toHashSet()
         noteMembers.filter { it.itemId !in alive }.forEach { deleteItemById(it.id) }
-    }
-    val taskMembers = getItemsByKindOnce(NotebookItem.KIND_TASK)
-    if (taskMembers.isNotEmpty()) {
-        val alive = taskDao.getByIds(taskMembers.map { it.itemId }.toSet().toList()).map { it.id }.toHashSet()
-        taskMembers.filter { it.itemId !in alive }.forEach { deleteItemById(it.id) }
     }
 }

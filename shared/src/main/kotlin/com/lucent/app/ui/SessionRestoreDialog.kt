@@ -35,21 +35,13 @@ fun SessionRestoreDialog() {
         },
         title = { Text(com.lucent.app.i18n.S.sessionRestoreTitle) },
         text = {
-            Text(
-                if (snapshot.kind == SessionRestore.KIND_TASK) {
-                    com.lucent.app.i18n.S.sessionRestoreTaskBody(title)
-                } else {
-                    com.lucent.app.i18n.S.sessionRestoreNoteBody(title)
-                }
-            )
+            Text(com.lucent.app.i18n.S.sessionRestoreNoteBody(title))
         },
         confirmButton = {
             TextButton(onClick = {
                 visible = false
                 SessionRestore.beginRestore(snapshot)
-                com.lucent.app.AppNavigation.requestScreen(
-                    if (snapshot.kind == SessionRestore.KIND_TASK) Screen.Tasks else Screen.Notes
-                )
+                com.lucent.app.AppNavigation.requestScreen(Screen.Notebooks)
             }) { Text(com.lucent.app.i18n.S.sessionRestoreConfirm) }
         },
         dismissButton = {

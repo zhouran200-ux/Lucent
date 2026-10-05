@@ -22,8 +22,6 @@ object ImportDecision {
 
     fun noteKey(title: String): String = title.trim().lowercase()
 
-    fun taskKey(title: String, createdAt: Long): String = "${title.trim().lowercase()}\u0000$createdAt"
-
     fun forNote(
         mode: ImportMode,
         localUpdatedAt: Long?,
@@ -37,16 +35,5 @@ object ImportDecision {
             ImportMode.OVERWRITE ->
                 if (backupUpdatedAt > localUpdatedAt) ImportAction.REPLACE else ImportAction.SKIP
         }
-    }
-
-    fun forTask(
-        mode: ImportMode,
-        matchedLocally: Boolean,
-        exactDuplicate: Boolean
-    ): ImportAction = when {
-        exactDuplicate -> ImportAction.SKIP
-        !matchedLocally -> ImportAction.INSERT
-        mode == ImportMode.PARALLEL -> ImportAction.INSERT
-        else -> ImportAction.REPLACE
     }
 }

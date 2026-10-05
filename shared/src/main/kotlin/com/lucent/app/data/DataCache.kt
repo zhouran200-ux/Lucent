@@ -10,10 +10,6 @@ object DataCache {
 
     var notes by mutableStateOf<List<Note>>(emptyList())
         private set
-    var activeTasks by mutableStateOf<List<Task>>(emptyList())
-        private set
-    var completedTasks by mutableStateOf<List<Task>>(emptyList())
-        private set
 
     private var started = false
 
@@ -23,14 +19,6 @@ object DataCache {
         AppScope.io.launch {
             runCatching { db.noteDao().getAll().collect { notes = it } }
                 .onFailure { android.util.Log.e("LucentDataCache", "note cache collector failed", it) }
-        }
-        AppScope.io.launch {
-            runCatching { db.taskDao().getActive().collect { activeTasks = it } }
-                .onFailure { android.util.Log.e("LucentDataCache", "active-task cache collector failed", it) }
-        }
-        AppScope.io.launch {
-            runCatching { db.taskDao().getCompleted().collect { completedTasks = it } }
-                .onFailure { android.util.Log.e("LucentDataCache", "completed-task cache collector failed", it) }
         }
     }
 }

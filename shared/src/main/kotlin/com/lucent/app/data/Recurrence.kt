@@ -49,21 +49,4 @@ object Recurrence {
         }
         return t
     }
-
-    fun nextOccurrence(task: Task): Task? {
-        val rule = RepeatRule.fromKey(task.repeatRule)
-        if (rule == RepeatRule.NONE) return null
-        val base = task.dueAt ?: return null
-        val nextDue = nextOccurrence(base, rule) ?: return null
-        return task.copy(
-            id = 0,
-            isDone = false,
-            createdAt = System.currentTimeMillis(),
-            attachments = "[]",
-            dueAt = nextDue,
-            completedAt = null,
-            subtasks = Checklist.resetDone(task.subtasks),
-            trashedAt = null
-        )
-    }
 }

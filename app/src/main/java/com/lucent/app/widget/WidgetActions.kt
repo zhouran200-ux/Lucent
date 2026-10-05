@@ -10,14 +10,7 @@ object WidgetActions {
     const val EXTRA_ACTION = "com.lucent.app.widget.ACTION"
 
     const val NEW_NOTE = "new_note"
-    const val NEW_TASK = "new_task"
-    const val ASK = "ask"
-    const val OPEN_TASKS = "open_tasks"
-
-    const val OPEN_TASK_ITEM = "open_task_item"
     const val OPEN_NOTE_ITEM = "open_note_item"
-
-    const val TOGGLE_TASK_ITEM = "toggle_task_item"
 
     const val EXTRA_ID = "com.lucent.app.widget.EXTRA_ID"
 
@@ -41,14 +34,5 @@ object WidgetActions {
         }
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         return PendingIntent.getActivity(context, (action + id).hashCode(), intent, flags)
-    }
-
-    fun taskListTemplate(context: Context): PendingIntent {
-        val intent = Intent(context, MainActivity::class.java).apply {
-            this.action = Intent.ACTION_MAIN
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        return PendingIntent.getActivity(context, "task_list_template".hashCode(), intent, flags)
     }
 }

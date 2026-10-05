@@ -1268,7 +1268,6 @@ ENTRIES = [
     ("notebookDeleteTitle", "Delete notebook?", "删除笔记本？", "ノートブックを削除しますか？", "노트북을 삭제할까요?"),
     ("notebookDeletedToast", "Notebook deleted", "笔记本已删除", "ノートブックを削除しました", "노트북이 삭제되었습니다"),
     ("notebookDetailEmpty", "Nothing in this notebook yet. Tap the plus button to write a note or add a task here.", "这个笔记本还没有内容。点击加号即可在这里写笔记或添加任务。", "このノートブックにはまだ何もありません。プラスボタンからメモを書くかタスクを追加できます。", "이 노트북에는 아직 아무것도 없습니다. 더하기 버튼으로 노트를 쓰거나 할 일을 추가하세요."),
-    ("notebookEmpty", "No notebooks yet. Select notes or tasks and add them to a notebook.", "还没有笔记本。选中笔记或任务，把它们加入笔记本即可。", "ノートブックはまだありません。ノートやタスクを選択して追加できます。", "아직 노트북이 없습니다. 노트나 할 일을 선택해 노트북에 추가할 수 있습니다."),
     ("notebookEmptyTitle", "Untitled", "未命名", "無題", "제목 없음"),
     ("notebookItemNote", "Note", "笔记", "ノート", "노트"),
     ("notebookItemTask", "Task", "任务", "タスク", "할 일"),
@@ -1887,6 +1886,14 @@ ENTRIES = [
     ("setupBundledReady", "Built-in environment is ready", "内置环境已就绪", "組み込み環境の準備が完了しました", "내장 환경이 준비되었습니다"),
     ("setupBundledUnavailable", "The built-in environment is not available on this device.", "此设备无法使用内置环境。", "この端末では組み込み環境を利用できません。", "이 기기에서는 내장 환경을 사용할 수 없습니다."),
     ("setupExtracting", "Preparing the built-in environment", "正在准备内置环境", "組み込み環境を準備中", "내장 환경 준비 중"),
+    ("fontTypographyTitle", "Font & Typography", "字体与排版", "フォントとタイポグラフィ", "글꼴 및 서식"),
+    ("fontTypographySub", "Adjust font family, size, line spacing and letter spacing", "调整字体、字号、行距与字间距", "フォント、サイズ、行間、字間を調整", "글꼴, 크기, 줄 간격 및 글자 간격 조정"),
+    ("typographyPreviewTitle", "Preview", "效果预览", "プレビュー", "미り보기"),
+    ("resetTypographyDefaults", "Reset", "恢复默认", "デフォルトに戻す", "기본값 복원"),
+    ("typographyPreviewSample", "Fluid Glass Notes preview text, adjusted dynamically.", "流光排版效果预览，滑动滑块实时调整。", "流光ノートのプレビューテキスト。スライダーでリアルタイムに調整できます。", "유리 효과 노트 미리보기 텍스트. 슬라이더로 실시간 조정됩니다."),
+    ("fontSizeScaleTitle", "Font Size", "字体大小", "文字サイズ", "글자 크기"),
+    ("lineSpacingTitle", "Line Spacing", "行间距", "行間", "줄 간격"),
+    ("letterSpacingTitle", "Letter Spacing", "字间距", "字間", "글자 간격"),
 ]
 
 CONDITIONAL_ENTRIES = {

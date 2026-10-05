@@ -24,7 +24,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lucent.app.AppScope
-import com.lucent.app.data.BiometricAuth
 import com.lucent.app.data.SettingsCache
 import com.lucent.app.data.SettingsRepository
 import com.lucent.app.i18n.S
@@ -86,31 +85,6 @@ fun DesktopIntegrationRows(repo: SettingsRepository) {
 
 @Composable
 fun SecondaryUnlockRow(repo: SettingsRepository, appLockOn: Boolean) {
-    val context = LocalContext.current
-    val biometricAvailable = remember { BiometricAuth.isAvailable(context) }
-    if (!appLockOn || !biometricAvailable) return
-
-    val onGradient = LocalOnGradient.current
-    val onGradientMuted = LocalOnGradientMuted.current
-    val scope = rememberCoroutineScope()
-    val biometricOn by repo.appLockBiometricEnabled.collectAsState(initial = SettingsCache.appLockBiometricEnabled)
-
-    Spacer(modifier = Modifier.height(12.dp))
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(S.biometricUnlockTitle, color = onGradient)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(S.biometricUnlockDesc, color = onGradientMuted, fontSize = 13.sp)
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Switch(
-            checked = biometricOn,
-            onCheckedChange = { turnOn ->
-                scope.launch { repo.setAppLockBiometricEnabled(turnOn) }
-                SettingsCache.appLockBiometricEnabled = turnOn
-            }
-        )
-    }
 }
 
 @Composable

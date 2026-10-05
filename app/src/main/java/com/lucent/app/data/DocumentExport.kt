@@ -38,20 +38,6 @@ object DocumentExport {
         }
     }
 
-    fun exportTasks(tasks: List<Task>, format: ExportFormat): ByteArray {
-        val live = tasks.filter { it.trashedAt == null }
-            .sortedWith(
-                compareByDescending<Task> { it.pinned }.thenBy { it.isDone }.thenByDescending { it.createdAt }
-            )
-        return when (format) {
-            ExportFormat.MARKDOWN -> MarkdownExport.renderTasks(tasks).toByteArray(Charsets.UTF_8)
-            ExportFormat.WORD -> tasksDocx(live)
-            ExportFormat.PDF -> tasksPdf(live)
-            ExportFormat.EXCEL -> tasksXlsx(live)
-        }
-    }
-
-
     private data class Block(
         val title: String,
         val meta: String,
@@ -87,42 +73,17 @@ object DocumentExport {
         )
     }
 
-    private fun taskBlock(task: Task): Block {
-        val meta = buildList {
-            add(com.lucent.app.i18n.S.exportDocCreated(formatTime(task.createdAt)))
-            task.dueAt?.let { add(com.lucent.app.i18n.S.exportDocDue(formatTime(it))) }
-            if (task.pinned) add(com.lucent.app.i18n.S.exportDocPinned)
-            TaskPriority.fromValue(task.priority).takeIf { it != TaskPriority.NONE }?.let { add(com.lucent.app.i18n.S.exportDocPriority(it.label)) }
-            RepeatRule.fromKey(task.repeatRule).takeIf { it != RepeatRule.NONE }?.let { add(com.lucent.app.i18n.S.exportDocRepeats(it.label)) }
-            add(if (task.isDone) com.lucent.app.i18n.S.exportDocDone else com.lucent.app.i18n.S.exportDocOpen)
-        }.joinToString(" · ")
-        val box = if (task.isDone) "\u2611" else "\u2610"
-        return Block(
-            title = "$box ${task.title.ifBlank { com.lucent.app.i18n.S.exportDocUntitledTask }}",
-            meta = meta,
-            body = task.notes.trim(),
-            bodySpans = task.notesSpans,
-            checklist = Checklist.parse(task.subtasks).map { it.done to it.text },
-            checklistLabel = com.lucent.app.i18n.S.exportDocSubtasks,
-            attachments = Attachments.parse(task.attachments).map { it.name }
-        )
-    }
-
-
     private fun notesDocx(notes: List<Note>): ByteArray =
-        docx(com.lucent.app.i18n.S.exportDocNotesTitle, notes.size, "note", notes.map { noteBlock(it) })
+        docx(com.lucent.app.i18n.S.exportDocNotesTitle, notes.size, notes.map { noteBlock(it) })
 
-    private fun tasksDocx(tasks: List<Task>): ByteArray =
-        docx(com.lucent.app.i18n.S.exportDocTasksTitle, tasks.size, "task", tasks.map { taskBlock(it) })
-
-    private fun docx(heading: String, count: Int, noun: String, blocks: List<Block>): ByteArray {
+    private fun docx(heading: String, count: Int, blocks: List<Block>): ByteArray {
         val body = StringBuilder()
         body.append(docxPara(heading, bold = true, sizeHalfPt = 40))
-        body.append(docxPara(((if (noun == "note") com.lucent.app.i18n.S.exportDocNoteCount(count) else com.lucent.app.i18n.S.exportDocTaskCount(count)) + ", " + com.lucent.app.i18n.S.exportDocExportedAt(formatTime(System.currentTimeMillis()))), italic = true, sizeHalfPt = 18))
+        body.append(docxPara((com.lucent.app.i18n.S.exportDocNoteCount(count) + ", " + com.lucent.app.i18n.S.exportDocExportedAt(formatTime(System.currentTimeMillis()))), italic = true, sizeHalfPt = 18))
         body.append(docxPara(com.lucent.app.i18n.S.exportDocAttachmentsNote, italic = true, sizeHalfPt = 18))
 
         if (blocks.isEmpty()) {
-            body.append(docxPara((if (noun == "note") com.lucent.app.i18n.S.exportDocNoNotes else com.lucent.app.i18n.S.exportDocNoTasks), italic = true))
+            body.append(docxPara(com.lucent.app.i18n.S.exportDocNoNotes, italic = true))
         } else {
             for (b in blocks) {
                 body.append(docxPara(b.title, bold = true, sizeHalfPt = 30, spaceBeforeTwips = 240))
@@ -269,85 +230,75 @@ object DocumentExport {
         return xlsx(com.lucent.app.i18n.S.tabNotes, header, rows)
     }
 
-    private fun tasksXlsx(tasks: List<Task>): ByteArray {
-        val header = listOf(com.lucent.app.i18n.S.exportColTitle, com.lucent.app.i18n.S.exportColStatus, com.lucent.app.i18n.S.exportColCreated, com.lucent.app.i18n.S.exportColDue, com.lucent.app.i18n.S.exportColPriority, com.lucent.app.i18n.S.exportColRepeat, com.lucent.app.i18n.S.exportColPinned, com.lucent.app.i18n.S.exportColDetails, com.lucent.app.i18n.S.exportColSubtasks, com.lucent.app.i18n.S.exportColAttachments)
-        val rows = tasks.map { t ->
-            val subtasks = Checklist.parse(t.subtasks).joinToString("\n") { "${if (it.done) "[x]" else "[ ]"} ${it.text}" }
-            listOf(
-                t.title.ifBlank { com.lucent.app.i18n.S.exportDocUntitledTask },
-                if (t.isDone) com.lucent.app.i18n.S.exportDocDone else com.lucent.app.i18n.S.exportDocOpen,
-                formatTime(t.createdAt),
-                t.dueAt?.let { formatTime(it) } ?: "",
-                TaskPriority.fromValue(t.priority).takeIf { it != TaskPriority.NONE }?.label ?: "",
-                RepeatRule.fromKey(t.repeatRule).takeIf { it != RepeatRule.NONE }?.label ?: "",
-                if (t.pinned) com.lucent.app.i18n.S.exportDocYes else "",
-                t.notes.trim(),
-                subtasks,
-                Attachments.parse(t.attachments).joinToString(", ") { it.name }
-            )
-        }
-        return xlsx(com.lucent.app.i18n.S.tabTasks, header, rows)
-    }
+    private fun notesPdf(notes: List<Note>): ByteArray =
+        pdf(com.lucent.app.i18n.S.exportDocNotesTitle, notes.size, notes.map { noteBlock(it) })
 
     private fun xlsx(sheetName: String, header: List<String>, rows: List<List<String>>): ByteArray {
-        val sheetData = StringBuilder("<sheetData>")
-        sheetData.append(xlsxRow(1, header))
-        rows.forEachIndexed { i, cells -> sheetData.append(xlsxRow(i + 2, cells)) }
-        sheetData.append("</sheetData>")
+        val sheetData = StringBuilder()
+        var r = 1
+        sheetData.append("""<row r="$r">""")
+        header.forEachIndexed { c, v ->
+            val colLetter = (('A'.code + c).toChar()).toString()
+            sheetData.append("""<c r="$colLetter$r" t="inlineStr"><is><t>${xmlEscape(v)}</t></is></c>""")
+        }
+        sheetData.append("</row>")
+        for (row in rows) {
+            r++
+            sheetData.append("""<row r="$r">""")
+            row.forEachIndexed { c, v ->
+                val colLetter = (('A'.code + c).toChar()).toString()
+                sheetData.append("""<c r="$colLetter$r" t="inlineStr"><is><t>${xmlEscape(v)}</t></is></c>""")
+            }
+            sheetData.append("</row>")
+        }
 
-        val cols = StringBuilder("<cols>")
-        for (c in header.indices) cols.append("<col min=\"${c + 1}\" max=\"${c + 1}\" width=\"24\" customWidth=\"1\"/>")
-        cols.append("</cols>")
+        val contentTypes = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>"""
 
-        val sheetXml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">$cols$sheetData</worksheet>"""
+        val rels = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>"""
+
+        val workbook = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="${xmlEscape(sheetName)}" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>"""
+
+        val wbRels = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>"""
+
+        val sheet = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>
+    $sheetData
+  </sheetData>
+</worksheet>"""
 
         return zip(
-            "[Content_Types].xml" to """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>""",
-            "_rels/.rels" to """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>""",
-            "xl/workbook.xml" to """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${xmlEscape(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>""",
-            "xl/_rels/workbook.xml.rels" to """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>""",
-            "xl/worksheets/sheet1.xml" to sheetXml
+            "[Content_Types].xml" to contentTypes,
+            "_rels/.rels" to rels,
+            "xl/workbook.xml" to workbook,
+            "xl/_rels/workbook.xml.rels" to wbRels,
+            "xl/worksheets/sheet1.xml" to sheet
         )
     }
-
-    private fun xlsxRow(rowNum: Int, cells: List<String>): String {
-        val sb = StringBuilder("<row r=\"$rowNum\">")
-        cells.forEachIndexed { i, value ->
-            val ref = colLetter(i) + rowNum
-            sb.append("<c r=\"$ref\" t=\"inlineStr\"><is><t xml:space=\"preserve\">").append(xmlEscape(value)).append("</t></is></c>")
-        }
-        sb.append("</row>")
-        return sb.toString()
-    }
-
-    private fun colLetter(index: Int): String {
-        var i = index
-        val sb = StringBuilder()
-        while (i >= 0) {
-            sb.insert(0, ('A' + (i % 26)))
-            i = i / 26 - 1
-        }
-        return sb.toString()
-    }
-
-
-    private fun notesPdf(notes: List<Note>): ByteArray =
-        pdf(com.lucent.app.i18n.S.exportDocNotesTitle, notes.size, "note", notes.map { noteBlock(it) })
-
-    private fun tasksPdf(tasks: List<Task>): ByteArray =
-        pdf(com.lucent.app.i18n.S.exportDocTasksTitle, tasks.size, "task", tasks.map { taskBlock(it) })
 
     private const val PAGE_W = 595
     private const val PAGE_H = 842
     private const val MARGIN = 42f
     private const val DOCX_RICH_BASE_PT = 12f
 
-    private fun pdf(heading: String, count: Int, noun: String, blocks: List<Block>): ByteArray {
+    private fun pdf(heading: String, count: Int, blocks: List<Block>): ByteArray {
         val doc = PdfDocument()
 
         val titlePaint = Paint().apply { color = Color.BLACK; textSize = 20f; isFakeBoldText = true; isAntiAlias = true }
@@ -360,11 +311,11 @@ object DocumentExport {
         state.newPage()
 
         state.drawWrapped(heading, titlePaint, 26f)
-        state.drawWrapped(((if (noun == "note") com.lucent.app.i18n.S.exportDocNoteCount(count) else com.lucent.app.i18n.S.exportDocTaskCount(count)) + ", " + com.lucent.app.i18n.S.exportDocExportedAt(formatTime(System.currentTimeMillis()))), metaPaint, 14f)
+        state.drawWrapped((com.lucent.app.i18n.S.exportDocNoteCount(count) + ", " + com.lucent.app.i18n.S.exportDocExportedAt(formatTime(System.currentTimeMillis()))), metaPaint, 14f)
         state.drawWrapped(com.lucent.app.i18n.S.exportDocAttachmentsNote, metaPaint, 16f)
 
         if (blocks.isEmpty()) {
-            state.drawWrapped((if (noun == "note") com.lucent.app.i18n.S.exportDocNoNotes else com.lucent.app.i18n.S.exportDocNoTasks), metaPaint, 14f)
+            state.drawWrapped(com.lucent.app.i18n.S.exportDocNoNotes, metaPaint, 14f)
         } else {
             for (b in blocks) {
                 state.space(10f)

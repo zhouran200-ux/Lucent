@@ -39,7 +39,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.lucent.app.harness.HarnessRuntime
 import com.lucent.app.i18n.S
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -116,7 +115,7 @@ internal object DirectoryBrowse {
         .orEmpty()
         .map { DirectoryEntry(it.path, it.path) }
 
-    fun home(): String = runCatching { HarnessRuntime.defaultWorkspace().path }.getOrDefault("")
+    fun home(): String = System.getProperty("user.home") ?: ""
 
     fun startingPoint(wanted: String): String {
         val clean = normalize(wanted)

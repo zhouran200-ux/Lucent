@@ -298,9 +298,7 @@ val MIGRATION_24_25 = object : Migration(24, 25) {
 @Database(
     entities = [
         Note::class,
-        Task::class,
         NoteVersion::class,
-        TaskVersion::class,
         ChatMessage::class,
         ChatConversation::class,
         Notebook::class,
@@ -312,9 +310,7 @@ val MIGRATION_24_25 = object : Migration(24, 25) {
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
-    abstract fun taskDao(): TaskDao
     abstract fun noteVersionDao(): NoteVersionDao
-    abstract fun taskVersionDao(): TaskVersionDao
     abstract fun chatDao(): ChatDao
     abstract fun chatConversationDao(): ChatConversationDao
     abstract fun notebookDao(): NotebookDao

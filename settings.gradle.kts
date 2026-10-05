@@ -14,5 +14,6 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Lucent"
 include(":app")
-include(":desktop")
-include(":baselineprofile")
+// include(":desktop")
+// include(":baselineprofile")
+

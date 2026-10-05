@@ -14,7 +14,7 @@ class AndroidUpdateInstaller(private val context: Context) : AutoUpdate.Installe
 
     override fun hasAsset(info: ReleaseInfo): Boolean = info.apk != null
 
-    override fun hasDownloadFolder(): Boolean = SettingsCache.autoBackup.folderUri.isNotBlank()
+    override fun hasDownloadFolder(): Boolean = true
 
     override fun startDownload(info: ReleaseInfo) {
         val asset = info.apk ?: return
@@ -39,20 +39,7 @@ class AndroidUpdateInstaller(private val context: Context) : AutoUpdate.Installe
         val asset = info.apk ?: return false
         val file = UpdateDownloadService.partialFile(context, asset.name)
         if (!file.exists() || file.length() <= 0L) return false
-        if (PrivilegedShell.isReady()) {
-            AutoUpdate.markPhase(AutoUpdate.Phase.INSTALLING)
-            val result = PrivilegedShell.installPackage(file.absolutePath, file.length())
-            StartupLog.event(
-                context,
-                "update: silent install ok=${result.success} ${result.stderr.take(200).trim()}"
-            )
-            if (result.success) {
-                discard(info)
-                return true
-            }
-        } else {
-            StartupLog.event(context, "update: no privileged shell, handing the APK to the package installer")
-        }
+        StartupLog.event(context, "update: handing the APK to the package installer")
         return openSystemInstaller(file)
     }
 

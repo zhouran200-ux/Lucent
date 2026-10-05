@@ -16,20 +16,12 @@ object AttachmentMigration {
 
         val db = AppDatabase.getInstance(appContext)
         val notes = db.noteDao().getAllOnce()
-        val tasks = db.taskDao().getAllOnce()
 
         var anyRemaining = false
         notes.forEach { note ->
             val (newJson, remaining) = migrateAttachmentsJson(appContext, note.attachments)
             if (newJson != note.attachments) {
                 db.noteDao().update(note.copy(attachments = newJson))
-            }
-            if (remaining) anyRemaining = true
-        }
-        tasks.forEach { task ->
-            val (newJson, remaining) = migrateAttachmentsJson(appContext, task.attachments)
-            if (newJson != task.attachments) {
-                db.taskDao().update(task.copy(attachments = newJson))
             }
             if (remaining) anyRemaining = true
         }
@@ -73,7 +65,6 @@ object AttachmentMigration {
         val db = AppDatabase.getInstance(appContext)
         val referenced = buildSet {
             db.noteDao().getAllOnce().forEach { addAll(Attachments.idsFromJson(it.attachments)) }
-            db.taskDao().getAllOnce().forEach { addAll(Attachments.idsFromJson(it.attachments)) }
         }
         referenced.forEach { id ->
             try {
@@ -86,10 +77,8 @@ object AttachmentMigration {
     suspend fun pruneOrphans(context: Context) {
         val db = AppDatabase.getInstance(context)
         val notes = db.noteDao().getAllOnce()
-        val tasks = db.taskDao().getAllOnce()
         val referenced = buildSet {
             notes.forEach { addAll(Attachments.idsFromJson(it.attachments)) }
-            tasks.forEach { addAll(Attachments.idsFromJson(it.attachments)) }
         }
         AttachmentStore.pruneOrphans(context, referenced)
     }

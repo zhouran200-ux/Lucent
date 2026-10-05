@@ -5,8 +5,10 @@ import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
 import com.lucent.app.data.FontStore
 
 const val SYSTEM_FONT_KEY = "system"
@@ -40,25 +42,51 @@ object LucentFontResolver {
 }
 
 @Composable
-fun lucentTypography(fontKey: String): Typography {
+fun lucentTypography(
+    fontKey: String,
+    fontScale: Float = 1.0f,
+    lineSpacing: Float = 1.2f,
+    letterSpacing: Float = 0.0f
+): Typography {
     val context = LocalContext.current
     val base = Typography()
-    val family = remember(fontKey) { LucentFontResolver.resolve(context, fontKey) } ?: return base
-    return base.copy(
-        displayLarge = base.displayLarge.copy(fontFamily = family),
-        displayMedium = base.displayMedium.copy(fontFamily = family),
-        displaySmall = base.displaySmall.copy(fontFamily = family),
-        headlineLarge = base.headlineLarge.copy(fontFamily = family),
-        headlineMedium = base.headlineMedium.copy(fontFamily = family),
-        headlineSmall = base.headlineSmall.copy(fontFamily = family),
-        titleLarge = base.titleLarge.copy(fontFamily = family),
-        titleMedium = base.titleMedium.copy(fontFamily = family),
-        titleSmall = base.titleSmall.copy(fontFamily = family),
-        bodyLarge = base.bodyLarge.copy(fontFamily = family),
-        bodyMedium = base.bodyMedium.copy(fontFamily = family),
-        bodySmall = base.bodySmall.copy(fontFamily = family),
-        labelLarge = base.labelLarge.copy(fontFamily = family),
-        labelMedium = base.labelMedium.copy(fontFamily = family),
-        labelSmall = base.labelSmall.copy(fontFamily = family)
+    val family = remember(fontKey) { LucentFontResolver.resolve(context, fontKey) }
+
+    fun TextStyle.applyCustom(): TextStyle {
+        val customLineHeight = if (lineHeight.value > 0f) {
+            (lineHeight.value * lineSpacing).sp
+        } else {
+            (fontSize.value * 1.35f * lineSpacing).sp
+        }
+        val extraLetterSpacing = letterSpacing.sp
+        val finalLetterSpacing = if (this.letterSpacing.value != 0f) {
+            (this.letterSpacing.value + letterSpacing).sp
+        } else {
+            extraLetterSpacing
+        }
+
+        return copy(
+            fontFamily = family ?: fontFamily,
+            lineHeight = customLineHeight,
+            letterSpacing = finalLetterSpacing
+        )
+    }
+
+    return Typography(
+        displayLarge = base.displayLarge.applyCustom(),
+        displayMedium = base.displayMedium.applyCustom(),
+        displaySmall = base.displaySmall.applyCustom(),
+        headlineLarge = base.headlineLarge.applyCustom(),
+        headlineMedium = base.headlineMedium.applyCustom(),
+        headlineSmall = base.headlineSmall.applyCustom(),
+        titleLarge = base.titleLarge.applyCustom(),
+        titleMedium = base.titleMedium.applyCustom(),
+        titleSmall = base.titleSmall.applyCustom(),
+        bodyLarge = base.bodyLarge.applyCustom(),
+        bodyMedium = base.bodyMedium.applyCustom(),
+        bodySmall = base.bodySmall.applyCustom(),
+        labelLarge = base.labelLarge.applyCustom(),
+        labelMedium = base.labelMedium.applyCustom(),
+        labelSmall = base.labelSmall.applyCustom()
     )
 }

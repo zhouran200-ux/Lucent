@@ -9,12 +9,6 @@ object SettingsCache {
     var notesSort: String? = null
 
     @Volatile
-    var tasksSort: String? = null
-
-    @Volatile
-    var notebooksSort: String? = null
-
-    @Volatile
     var sessionSnapshot: String? = null
 
     @Volatile
@@ -27,7 +21,7 @@ object SettingsCache {
     var systemIntegrationEnabled: Boolean = false
 
     @Volatile
-    var appLanguage: String = "system"
+    var appLanguage: String = "zh"
 
     @Volatile
     var themeMode: String = "system"
@@ -39,19 +33,25 @@ object SettingsCache {
     var font: String = "system"
 
     @Volatile
+    var fontScale: Float = 1.0f
+
+    @Volatile
+    var lineSpacing: Float = 1.2f
+
+    @Volatile
+    var letterSpacing: Float = 0.0f
+
+    @Volatile
     var dynamicColor: Boolean = false
 
     @Volatile
     var backgroundAnimationEnabled: Boolean = true
 
     @Volatile
-    var splashEnabled: Boolean = true
+    var splashEnabled: Boolean = false
 
     @Volatile
     var splashStyle: String = SplashStyle.DEFAULT.key
-
-    @Volatile
-    var autoBackup: AutoBackup.State = AutoBackup.State.EMPTY
 
     @Volatile
     var assistantStyle: String = ""
@@ -69,6 +69,9 @@ object SettingsCache {
     var model: String = ""
 
     @Volatile
+    var customUserAgent: String = ""
+
+    @Volatile
     var apiProfilesJson: String = ""
 
     @Volatile
@@ -76,9 +79,6 @@ object SettingsCache {
 
     @Volatile
     var noteHistoryEnabled: Boolean = true
-
-    @Volatile
-    var taskHistoryEnabled: Boolean = true
 
     @Volatile
     var crashShieldEnabled: Boolean = false
@@ -90,13 +90,13 @@ object SettingsCache {
     var pwSelfDestructEnabled: Boolean = false
 
     @Volatile
-    var pwFirstRoundLimit: Int = PasswordAttempts.DEFAULT_FIRST_ROUND_LIMIT
+    var pwFirstRoundLimit: Int = 5
 
     @Volatile
-    var pwLaterRoundLimit: Int = PasswordAttempts.DEFAULT_LATER_ROUND_LIMIT
+    var pwLaterRoundLimit: Int = 3
 
     @Volatile
-    var pwSelfDestructThreshold: Int = PasswordAttempts.DEFAULT_SELF_DESTRUCT_THRESHOLD
+    var pwSelfDestructThreshold: Int = 25
 
     @Volatile
     var passwordAttemptState: String = ""
@@ -121,9 +121,6 @@ object SettingsCache {
 
     @Volatile
     var linksEnabled: Boolean = false
-
-    @Volatile
-    var typingHapticsEnabled: Boolean = true
 
     @Volatile
     var assistantConfirmToolsEnabled: Boolean = true
@@ -165,24 +162,6 @@ object SettingsCache {
     var embeddingProvider: String = "local"
 
     @Volatile
-    var cloudEnabled: Boolean = false
-
-    @Volatile
-    var cloudProvider: String = "Nutstore"
-
-    @Volatile
-    var cloudUrl: String = ""
-
-    @Volatile
-    var cloudUser: String = ""
-
-    @Volatile
-    var cloudFolder: String = "Lucent"
-
-    @Volatile
-    var cloudAutoBackup: Boolean = false
-
-    @Volatile
     var updateChannel: String = "stable"
 
     @Volatile
@@ -207,17 +186,9 @@ object SettingsCache {
     @Volatile
     var globalTextSelectionEnabled: Boolean = false
 
-    @Volatile
-    var cloudPasswordEnc: String = ""
-
-    @Volatile
-    var harnessConfigJson: String = ""
-
     fun seed(prefs: SettingsRepository.StartupPrefs) {
         assistantName = prefs.assistantName
         notesSort = prefs.notesSort
-        tasksSort = prefs.tasksSort
-        notebooksSort = prefs.notebooksSort
         sessionSnapshot = prefs.sessionSnapshot.ifBlank { null }
         appLockEnabled = prefs.appLockEnabled
         startupLoggingEnabled = prefs.startupLoggingEnabled
@@ -226,20 +197,22 @@ object SettingsCache {
         themeMode = prefs.display.themeMode
         palette = prefs.display.palette
         font = prefs.display.font
+        fontScale = prefs.display.fontScale
+        lineSpacing = prefs.display.lineSpacing
+        letterSpacing = prefs.display.letterSpacing
         dynamicColor = prefs.dynamicColor
         backgroundAnimationEnabled = prefs.backgroundAnimationEnabled
         splashEnabled = prefs.splashEnabled
         splashStyle = prefs.splashStyle
-        autoBackup = prefs.autoBackup
         assistantStyle = prefs.assistantStyle
         baseUrl = prefs.baseUrl
         apiSpec = prefs.apiSpec
         apiKey = prefs.apiKey
         model = prefs.model
+        customUserAgent = prefs.customUserAgent
         apiProfilesJson = prefs.apiProfilesJson
         apiProfileSelected = prefs.apiProfileSelected
         noteHistoryEnabled = prefs.noteHistoryEnabled
-        taskHistoryEnabled = prefs.taskHistoryEnabled
         crashShieldEnabled = prefs.crashShieldEnabled
         blackoutEnabled = prefs.blackoutEnabled
         pwSelfDestructEnabled = prefs.pwSelfDestructEnabled
@@ -254,7 +227,6 @@ object SettingsCache {
         markdownEnabled = prefs.markdownEnabled
         richTextEnabled = prefs.richTextEnabled
         linksEnabled = prefs.linksEnabled
-        typingHapticsEnabled = prefs.typingHapticsEnabled
         assistantConfirmToolsEnabled = prefs.assistantConfirmToolsEnabled
         localModelEnabled = prefs.localModelEnabled
         localToolsEnabled = prefs.localToolsEnabled
@@ -268,17 +240,10 @@ object SettingsCache {
         memoryTier = prefs.memoryTier
         memoryTierLocal = prefs.memoryTierLocal
         embeddingProvider = prefs.embeddingProvider
-        cloudEnabled = prefs.cloudEnabled
-        cloudProvider = prefs.cloudProvider
-        cloudUrl = prefs.cloudUrl
-        cloudUser = prefs.cloudUser
-        cloudFolder = prefs.cloudFolder
-        cloudAutoBackup = prefs.cloudAutoBackup
 
         terminalFontSize = prefs.terminalFontSize
         terminalKeyBarVisible = prefs.terminalKeyBarVisible
         globalTextSelectionEnabled = prefs.globalTextSelectionEnabled
-        cloudPasswordEnc = prefs.cloudPasswordEnc
 
         updateChannel = prefs.updateChannel
         installedPreviewIdentity = prefs.installedPreviewIdentity

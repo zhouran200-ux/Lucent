@@ -18,7 +18,6 @@ import com.lucent.app.data.Attachments
 import com.lucent.app.data.AttachmentStore
 import com.lucent.app.data.Note
 import com.lucent.app.data.ShareIntegration
-import com.lucent.app.data.Task
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,15 +37,6 @@ object ShareIntake {
         val body = shared.text.orEmpty()
         val attachmentsJson = attachment?.let { Attachments.serialize(listOf(it)) } ?: "[]"
         return db.noteDao().insert(Note(title = title, body = body, attachments = attachmentsJson))
-    }
-
-    suspend fun createTask(context: Context, shared: ShareIntegration.Shared): Long {
-        val db = AppDatabase.getInstance(context.applicationContext)
-        val attachment = shared.streamUri?.let { importStream(context, it, shared.mime) }
-        val title = deriveTitle(shared, attachment)
-        val remainder = shared.text?.substringAfter('\n', "")?.trim().orEmpty()
-        val attachmentsJson = attachment?.let { Attachments.serialize(listOf(it)) } ?: "[]"
-        return db.taskDao().insert(Task(title = title, notes = remainder, attachments = attachmentsJson))
     }
 
     private fun deriveTitle(shared: ShareIntegration.Shared, attachment: Attachment?): String {
@@ -113,14 +103,7 @@ fun ShareIntakeDialog() {
             }) { Text(com.lucent.app.i18n.S.newNote) }
         },
         dismissButton = {
-            TextButton(onClick = {
-                val payload = shared
-                ShareIntake.clear()
-                scope.launch {
-                    val id = withContext(Dispatchers.IO) { ShareIntake.createTask(context, payload) }
-                    AppNavigation.openTask(id)
-                }
-            }) { Text(com.lucent.app.i18n.S.newTask) }
+            TextButton(onClick = { ShareIntake.clear() }) { Text(com.lucent.app.i18n.S.actionCancel) }
         }
     )
 }

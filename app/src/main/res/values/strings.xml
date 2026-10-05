@@ -1,30 +1,15 @@
 <resources>
-    <string name="app_name">𝓛𝓾𝓬𝓮𝓷𝓽</string>
+    <string name="app_name">Lucent</string>
 
-    <string name="widget_ask">Ask</string>
-    <string name="widget_new_note">New note</string>
-    <string name="widget_new_task">New task</string>
-    <string name="widget_note">Note</string>
-    <string name="widget_task">Task</string>
-    <string name="widget_tasks_title">Tasks</string>
-    <string name="widget_today_empty">Nothing to do. Tap + to add a task.</string>
-    <string name="widget_open_tasks">open tasks</string>
-    <string name="widget_open_task_one">open task</string>
-    <string name="widget_no_pinned_note">No pinned note</string>
-    <string name="widget_untitled">Untitled</string>
-    <string name="widget_untitled_task">Untitled task</string>
+    <string name="widget_ask">提问</string>
+    <string name="widget_new_note">新建笔记</string>
+    <string name="widget_note">笔记</string>
+    <string name="widget_no_pinned_note">没有置顶笔记</string>
+    <string name="widget_untitled">无标题</string>
 
-    <string name="widget_label_new_task">New task</string>
-    <string name="widget_label_new_note">New note</string>
-    <string name="widget_label_assistant">Assistant</string>
-    <string name="widget_label_progress">Task progress</string>
-    <string name="widget_label_quick">Quick actions</string>
-    <string name="widget_label_today">Task list</string>
-    <string name="widget_label_pinned">Pinned note</string>
-    <string name="widget_ask_hint">Ask anything…</string>
-    <string name="widget_all_done">All done ✨</string>
-    <string name="widget_next_fmt">Next: %1$s</string>
-    <string name="widget_fraction_fmt" translatable="false">%1$d / %2$d</string>
-    <string name="widget_a11y_mark_done">Mark as done</string>
-    <string name="widget_a11y_reopen">Mark as not done</string>
+    <string name="widget_label_new_note">添加笔记</string>
+    <string name="widget_label_assistant">助手聊天</string>
+    <string name="widget_label_quick">快捷操作</string>
+    <string name="widget_label_pinned">置顶笔记</string>
+    <string name="widget_ask_hint">问点什么…</string>
 </resources>

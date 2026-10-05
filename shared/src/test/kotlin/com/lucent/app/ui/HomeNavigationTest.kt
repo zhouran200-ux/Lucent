@@ -20,9 +20,8 @@ class HomeNavigationTest {
         L.apply("en")
         drain()
         HomeSearch.clear()
-        LastScreen.current = Screen.Tasks
-        LastScreen.home = Screen.Tasks
-        LastScreen.homeMode = HomeMode.Tasks
+        LastScreen.current = Screen.Notebooks
+        LastScreen.home = Screen.Notebooks
     }
 
     @AfterTest
@@ -35,56 +34,27 @@ class HomeNavigationTest {
         AppNavigation.consumeScreen()
         AppNavigation.consumePanel()
         AppNavigation.consumeEditNoteId()
-        AppNavigation.consumeEditTaskId()
         AppNavigation.consumeNoteId()
-        AppNavigation.consumeTaskId()
         AppNavigation.consumeReturnScreen()
         AppNavigation.consumeComposeNote()
-        AppNavigation.consumeComposeTask()
     }
 
     @Test
-    fun homeModesMapToTheirScreensAndBack() {
-        assertEquals(listOf(HomeMode.Tasks, HomeMode.Notes), HomeMode.entries.toList())
-        HomeMode.entries.forEach { mode ->
-            assertEquals(mode, HomeMode.of(mode.screen))
-        }
-        assertNull(HomeMode.of(Screen.Settings))
-        assertNull(HomeMode.of(Screen.Assistant))
-        assertNull(HomeMode.of(null))
-    }
-
-    @Test
-    fun otherFlipsBetweenTheTwoModes() {
-        assertEquals(HomeMode.Notes, HomeMode.Tasks.other())
-        assertEquals(HomeMode.Tasks, HomeMode.Notes.other())
-    }
-
-    @Test
-    fun modeLabelsFollowTheTabStrings() {
-        assertEquals(S.tabTasks, HomeMode.Tasks.label)
-        assertEquals(S.tabNotes, HomeMode.Notes.label)
-    }
-
-    @Test
-    fun panelsKeepTheDraftsArchiveTrashOrder() {
+    fun panelsKeepTheArchiveTrashOrder() {
         assertEquals(
-            listOf(HomePanel.Drafts, HomePanel.Archive, HomePanel.Trash),
+            listOf(HomePanel.Archive, HomePanel.Trash),
             HomePanel.visible(hiddenVisible = false)
         )
         assertEquals(
-            listOf(HomePanel.Drafts, HomePanel.Archive, HomePanel.Trash, HomePanel.Hidden),
+            listOf(HomePanel.Archive, HomePanel.Trash, HomePanel.Hidden),
             HomePanel.visible(hiddenVisible = true)
         )
     }
 
     @Test
-    fun archiveIsNamedForWhatItHoldsInEachMode() {
-        assertEquals(S.screenArchivedNotes, HomePanel.Archive.label(HomeMode.Notes))
-        assertEquals(S.screenCompletedTasks, HomePanel.Archive.label(HomeMode.Tasks))
+    fun archiveIsNamedForWhatItHolds() {
+        assertEquals(S.screenArchivedNotes, HomePanel.Archive.label())
         assertEquals(S.navArchive, HomePanel.Archive.title)
-        assertEquals(HomePanel.Trash.title, HomePanel.Trash.label(HomeMode.Tasks))
-        assertEquals(HomePanel.Drafts.label(HomeMode.Notes), HomePanel.Drafts.label(HomeMode.Tasks))
     }
 
     @Test
@@ -103,67 +73,48 @@ class HomeNavigationTest {
     }
 
     @Test
-    fun editNoteRoutesToNotesWithThePendingId() {
+    fun editNoteRoutesToNotebooksWithThePendingId() {
         AppNavigation.editNote(42L)
-        assertEquals(Screen.Notes, AppNavigation.consumeScreen())
+        assertEquals(Screen.Notebooks, AppNavigation.consumeScreen())
         assertEquals(42L, AppNavigation.consumeEditNoteId())
-        assertNull(AppNavigation.consumeEditNoteId())
-        assertNull(AppNavigation.consumeEditTaskId())
-    }
-
-    @Test
-    fun editTaskRoutesToTasksWithThePendingId() {
-        AppNavigation.editTask(7L)
-        assertEquals(Screen.Tasks, AppNavigation.consumeScreen())
-        assertEquals(7L, AppNavigation.consumeEditTaskId())
         assertNull(AppNavigation.consumeEditNoteId())
     }
 
     @Test
     fun openNoteRemembersWhereToReturn() {
-        AppNavigation.openNote(5L, from = Screen.Tasks)
-        assertEquals(Screen.Notes, AppNavigation.consumeScreen())
+        AppNavigation.openNote(5L, from = Screen.Settings)
+        assertEquals(Screen.Notebooks, AppNavigation.consumeScreen())
         assertEquals(5L, AppNavigation.consumeNoteId())
-        assertEquals(Screen.Tasks, AppNavigation.consumeReturnScreen())
+        assertEquals(Screen.Settings, AppNavigation.consumeReturnScreen())
         assertNull(AppNavigation.consumeReturnScreen())
     }
 
     @Test
-    fun composeRequestsLandOnTheirModes() {
-        AppNavigation.requestComposeTask()
-        assertEquals(Screen.Tasks, AppNavigation.consumeScreen())
-        assertTrue(AppNavigation.consumeComposeTask())
-        assertFalse(AppNavigation.consumeComposeTask())
+    fun composeRequestsLandOnNotebooks() {
         AppNavigation.requestComposeNote()
-        assertEquals(Screen.Notes, AppNavigation.consumeScreen())
+        assertEquals(Screen.Notebooks, AppNavigation.consumeScreen())
         assertTrue(AppNavigation.consumeComposeNote())
+        assertFalse(AppNavigation.consumeComposeNote())
     }
 
     @Test
-    fun lastScreenTracksTheHomeModeSeparately() {
-        LastScreen.remember(Screen.Notes)
-        assertEquals(HomeMode.Notes, LastScreen.homeMode)
-        LastScreen.remember(Screen.Assistant)
-        assertEquals(HomeMode.Notes, LastScreen.homeMode)
-        assertEquals(Screen.Assistant, LastScreen.home)
+    fun lastScreenTracksTheHomeScreen() {
+        LastScreen.remember(Screen.Notebooks)
+        assertEquals(Screen.Notebooks, LastScreen.home)
         LastScreen.remember(Screen.Settings)
-        assertEquals(Screen.Assistant, LastScreen.home)
+        assertEquals(Screen.Notebooks, LastScreen.home)
         assertEquals(Screen.Settings, LastScreen.current)
-        LastScreen.remember(Screen.Tasks)
-        assertEquals(HomeMode.Tasks, LastScreen.homeMode)
     }
 
     @Test
-    fun hydrateRestoresTheModeAndIgnoresUnknownNames() {
-        LastScreen.hydrate("Notes")
-        assertEquals(Screen.Notes, LastScreen.current)
-        assertEquals(HomeMode.Notes, LastScreen.homeMode)
+    fun hydrateRestoresScreenAndIgnoresUnknownNames() {
+        LastScreen.hydrate("Settings")
+        assertEquals(Screen.Settings, LastScreen.current)
         LastScreen.hydrate("NoSuchScreen")
-        assertEquals(Screen.Tasks, LastScreen.current)
-        assertEquals(HomeMode.Tasks, LastScreen.homeMode)
+        assertEquals(Screen.Notebooks, LastScreen.current)
         LastScreen.hydrate("")
-        assertEquals(Screen.Tasks, LastScreen.current)
-        assertEquals(Screen.Tasks.name, LastScreen.persistedName())
+        assertEquals(Screen.Notebooks, LastScreen.current)
+        assertEquals(Screen.Notebooks.name, LastScreen.persistedName())
     }
 
     @Test
@@ -176,20 +127,12 @@ class HomeNavigationTest {
 
     @Test
     fun newStringsExistInEveryLanguage() {
-        listOf("en", "zh", "ja", "ko").forEach { lang ->
-            L.apply(lang)
-            assertTrue(S.tabHome.isNotBlank())
-            assertTrue(S.navArchive.isNotBlank())
-            assertTrue(S.drawerOpen.isNotBlank())
-            assertTrue(S.drawerSectionLibrary.isNotBlank())
-            assertTrue(S.drawerFooter("9.9.9").contains("9.9.9"))
-            assertTrue(S.notebooksTotal(3).contains("3"))
-        }
-        L.apply("en")
-        assertEquals("1 notebook", S.notebooksTotal(1))
-        assertEquals("2 notebooks", S.notebooksTotal(2))
         L.apply("zh")
-        assertNotEquals(S.tabHome, "Home")
-        L.apply("en")
+        assertTrue(S.screenNotebooks.isNotBlank())
+        assertTrue(S.navArchive.isNotBlank())
+        assertTrue(S.drawerOpen.isNotBlank())
+        assertTrue(S.notebooksTotal(3).contains("3"))
+        assertTrue(S.notebooksTotal(1).contains("1"))
+        assertTrue(S.notebooksTotal(2).contains("2"))
     }
 }

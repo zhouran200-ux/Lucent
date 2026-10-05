@@ -1,7 +1,6 @@
 package com.lucent.app.data
 
 import android.content.Context
-import com.lucent.app.reminders.ReminderScheduler
 
 object TrashCleanup {
 
@@ -19,17 +18,7 @@ object TrashCleanup {
             purgeNote(appContext, db, note)
         }
 
-        db.taskDao().getAllOnce().forEach { task ->
-            val trashedAt = task.trashedAt ?: return@forEach
-            if (trashedAt >= cutoff) return@forEach
-            purgeTask(appContext, db, task)
-        }
-
-        db.notebookDao().purgeTrashedBefore(cutoff)
-
         db.noteVersionDao().pruneOrphaned()
-        db.taskVersionDao().pruneOrphaned()
-
     }
 
     suspend fun purgeNote(context: Context, db: AppDatabase, note: Note) {
@@ -39,15 +28,5 @@ object TrashCleanup {
         }
         NoteHistory.deleteAllFor(db, note.id)
         db.noteDao().delete(note)
-    }
-
-    suspend fun purgeTask(context: Context, db: AppDatabase, task: Task) {
-        val appContext = context.applicationContext
-        Attachments.parse(task.attachments).forEach { att ->
-            if (AttachmentStore.looksLikeId(att.data)) AttachmentStore.delete(appContext, att.data)
-        }
-        ReminderScheduler.cancel(appContext, task.id)
-        TaskHistory.deleteAllFor(db, task.id)
-        db.taskDao().delete(task)
     }
 }

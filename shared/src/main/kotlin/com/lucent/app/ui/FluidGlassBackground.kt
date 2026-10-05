@@ -1,57 +1,33 @@
 package com.lucent.app.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import com.lucent.app.data.StartupLog
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withContext
-import kotlin.math.ceil
 
 data class BackgroundEnvironment(val active: Boolean = true, val motionEnabled: Boolean = true)
 
 val LocalBackgroundEnvironment = staticCompositionLocalOf { BackgroundEnvironment() }
-
-private const val STILL_COLOUR_TICK_MS = 1_000L
-
-private class PaletteArgbs {
-    private var values = IntArray(0)
-
-    fun of(palette: List<Color>): IntArray {
-        if (!matches(palette)) values = IntArray(palette.size) { palette[it].toArgb() }
-        return values
-    }
-
-    private fun matches(palette: List<Color>): Boolean {
-        if (palette.size != values.size) return false
-        for (index in palette.indices) {
-            if (palette[index].toArgb() != values[index]) return false
-        }
-        return true
-    }
-}
 
 @Composable
 fun FluidGlassBackground(
@@ -64,87 +40,107 @@ fun FluidGlassBackground(
     val environment = LocalBackgroundEnvironment.current
     val inspection = LocalInspectionMode.current
     val moving = animated && environment.motionEnabled && !inspection
+
     LaunchedEffect(animated, environment.active, moving) {
         val mode = when {
             !animated -> "flat"
             !environment.active -> "paused"
-            !moving -> "still waves, slow colour drift"
-            else -> "animated gradient"
+            !moving -> "static gradient"
+            else -> "gpu accelerated gradient"
         }
         StartupLog.event(context, "Background: $mode")
     }
+
     if (!animated) {
         Box(modifier.fillMaxSize().background(backdropColor))
         return
     }
 
-    val currentPalette by rememberUpdatedState(palette)
-    val currentBackdrop by rememberUpdatedState(backdropColor)
-    var frame by remember { mutableStateOf<ImageBitmap?>(null) }
-    val timeline = remember { BackgroundTimeline() }
-    val policy = remember { BackgroundFramePolicy() }
-    val argbPalette = remember { PaletteArgbs() }
+    val primary = palette.getOrNull(0) ?: MaterialTheme.colorScheme.primary
+    val secondary = palette.getOrNull(1) ?: MaterialTheme.colorScheme.secondary
+    val tertiary = palette.getOrNull(2) ?: MaterialTheme.colorScheme.tertiary
+    val isDark = backdropColor.luminance() < 0.5f
 
-    LaunchedEffect(environment.active, moving) {
-        if (!environment.active) return@LaunchedEffect
-        policy.resume()
-        var field = DiffuseGradientField(policy.edge)
-        suspend fun paint(spatialSeconds: Double, colourSeconds: Double): ImageBitmap {
-            val colors = argbPalette.of(currentPalette)
-            val backdrop = currentBackdrop
-            return withContext(Dispatchers.Default) {
-                if (field.edge != policy.edge) field = DiffuseGradientField(policy.edge)
-                val pixels = field.render(
-                    spatialSeconds = spatialSeconds,
-                    colourSeconds = colourSeconds,
-                    palette = colors,
-                    backdrop = backdrop.toArgb(),
-                    dark = backdrop.luminance() < 0.5f
+    // Soft opacity for the gradient blobs
+    val blobAlpha = if (isDark) 0.38f else 0.22f
+
+    if (!moving) {
+        // Hardware accelerated static gradient
+        Canvas(modifier.fillMaxSize().background(backdropColor)) {
+            val w = size.width
+            val h = size.height
+            if (w <= 0f || h <= 0f) return@Canvas
+
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(primary.copy(alpha = blobAlpha), Color.Transparent),
+                    center = Offset(w * 0.25f, h * 0.15f),
+                    radius = w * 0.9f
                 )
-                diffuseImageBitmap(pixels, field.edge)
-            }
+            )
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(secondary.copy(alpha = blobAlpha * 0.85f), Color.Transparent),
+                    center = Offset(w * 0.85f, h * 0.5f),
+                    radius = w * 0.8f
+                )
+            )
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(tertiary.copy(alpha = blobAlpha * 0.75f), Color.Transparent),
+                    center = Offset(w * 0.35f, h * 0.85f),
+                    radius = w * 0.85f
+                )
+            )
         }
-        try {
-            when {
-                inspection -> frame = paint(0.0, 0.0)
-
-                !moving -> {
-                    var colourSeconds = 0.0
-                    while (isActive) {
-                        frame = paint(spatialSeconds = 0.0, colourSeconds = colourSeconds)
-                        delay(STILL_COLOUR_TICK_MS)
-                        colourSeconds += STILL_COLOUR_TICK_MS / 1000.0
-                    }
-                }
-
-                else -> while (isActive) {
-                    val frameNanos = withFrameNanos { it }
-                    if (!policy.isDue(frameNanos)) continue
-                    val seconds = timeline.advance(frameNanos)
-                    val started = System.nanoTime()
-                    val next = paint(seconds, seconds)
-                    val renderNanos = System.nanoTime() - started
-                    frame = next
-                    if (policy.record(frameNanos, renderNanos)) {
-                        StartupLog.event(context, "Background: quality tier ${policy.tier}, texture ${policy.edge}px")
-                    }
-                }
-            }
-        } finally {
-            timeline.pause()
-        }
+        return
     }
 
+    // Hardware accelerated GPU animated gradient with infinite transition (0 CPU rasterization)
+    val infiniteTransition = rememberInfiniteTransition(label = "BackgroundTransition")
+    val animProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 14000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "gradientMotion"
+    )
+
     Canvas(modifier.fillMaxSize().background(backdropColor)) {
-        frame?.let { image ->
-            if (size.width >= 1f && size.height >= 1f) {
-                drawImage(
-                    image = image,
-                    dstOffset = IntOffset.Zero,
-                    dstSize = IntSize(ceil(size.width).toInt(), ceil(size.height).toInt()),
-                    filterQuality = FilterQuality.Low
-                )
-            }
-        }
+        val w = size.width
+        val h = size.height
+        if (w <= 0f || h <= 0f) return@Canvas
+
+        val t = animProgress * (2 * Math.PI.toFloat())
+        val x1 = w * (0.28f + 0.12f * kotlin.math.cos(t))
+        val y1 = h * (0.20f + 0.08f * kotlin.math.sin(t))
+        val x2 = w * (0.75f - 0.12f * kotlin.math.sin(t))
+        val y2 = h * (0.52f + 0.10f * kotlin.math.cos(t))
+        val x3 = w * (0.35f + 0.08f * kotlin.math.sin(t))
+        val y3 = h * (0.82f - 0.08f * kotlin.math.cos(t))
+
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(primary.copy(alpha = blobAlpha), Color.Transparent),
+                center = Offset(x1, y1),
+                radius = w * 0.95f
+            )
+        )
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(secondary.copy(alpha = blobAlpha * 0.85f), Color.Transparent),
+                center = Offset(x2, y2),
+                radius = w * 0.85f
+            )
+        )
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(tertiary.copy(alpha = blobAlpha * 0.75f), Color.Transparent),
+                center = Offset(x3, y3),
+                radius = w * 0.9f
+            )
+        )
     }
 }

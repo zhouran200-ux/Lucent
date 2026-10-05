@@ -4,7 +4,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
-import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -35,7 +34,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
@@ -70,7 +68,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.util.Calendar
 
 const val SWIPE_EXIT_MS = 160
 
@@ -235,53 +232,6 @@ fun CompletedCheckbox(modifier: Modifier = Modifier, boxSize: Dp = 22.dp) {
 }
 
 @Composable
-fun DateFilterIconButton(active: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val onGradient = LocalOnGradient.current
-    val onGradientMuted = LocalOnGradientMuted.current
-    IconButton(onClick = onClick, modifier = modifier) {
-        Icon(
-            Icons.Default.CalendarToday,
-            contentDescription = com.lucent.app.i18n.S.a11yFilterByDate,
-            tint = if (active) onGradient else onGradientMuted
-        )
-    }
-}
-
-@Composable
-fun DateFilterChip(startMillis: Long, endMillis: Long, onClear: () -> Unit, modifier: Modifier = Modifier) {
-    val onGradient = LocalOnGradient.current
-    val shape = RoundedCornerShape(percent = 50)
-    val chipDark = isDarkGlass()
-    val chipFill = Color.White.copy(alpha = if (chipDark) 0.12f else 0.26f)
-    val chipRim = if (chipDark) Color.White.copy(alpha = 0.22f) else onGradient.copy(alpha = 0.20f)
-    Row(
-        modifier = modifier
-            .clip(shape)
-            .background(chipFill)
-            .border(1.dp, chipRim, shape)
-            .padding(start = 12.dp, end = 2.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            Icons.Default.CalendarToday,
-            contentDescription = null,
-            tint = onGradient,
-            modifier = Modifier.size(15.dp)
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(formatDateRange(startMillis, endMillis), color = onGradient, fontSize = 13.sp)
-        IconButton(onClick = onClear, modifier = Modifier.size(30.dp)) {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = com.lucent.app.i18n.S.a11yClearDateFilter,
-                tint = onGradient,
-                modifier = Modifier.size(15.dp)
-            )
-        }
-    }
-}
-
-@Composable
 fun CollapsibleActionBar(
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
@@ -337,43 +287,6 @@ fun NewItemButton(contentDescription: String, onClick: () -> Unit, modifier: Mod
     ) {
         Icon(Icons.Default.Add, contentDescription = contentDescription, tint = onGradient)
     }
-}
-
-private fun startOfDayMillis(year: Int, month: Int, day: Int): Long =
-    Calendar.getInstance().apply {
-        set(Calendar.YEAR, year)
-        set(Calendar.MONTH, month)
-        set(Calendar.DAY_OF_MONTH, day)
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }.timeInMillis
-
-fun showDateRangePicker(context: Context, currentStart: Long?, currentEnd: Long?, onPicked: (Long, Long) -> Unit) {
-    val startBase = Calendar.getInstance().apply { if (currentStart != null) timeInMillis = currentStart }
-    DatePickerDialog(
-        context,
-        { _, sYear, sMonth, sDay ->
-            val startMillis = startOfDayMillis(sYear, sMonth, sDay)
-            val endBase = Calendar.getInstance().apply {
-                timeInMillis = if (currentEnd != null && currentEnd >= startMillis) currentEnd else startMillis
-            }
-            DatePickerDialog(
-                context,
-                { _, eYear, eMonth, eDay ->
-                    val endMillis = startOfDayMillis(eYear, eMonth, eDay)
-                    onPicked(startMillis, maxOf(startMillis, endMillis))
-                },
-                endBase.get(Calendar.YEAR),
-                endBase.get(Calendar.MONTH),
-                endBase.get(Calendar.DAY_OF_MONTH)
-            ).apply { datePicker.minDate = startMillis }.show()
-        },
-        startBase.get(Calendar.YEAR),
-        startBase.get(Calendar.MONTH),
-        startBase.get(Calendar.DAY_OF_MONTH)
-    ).show()
 }
 
 @Composable

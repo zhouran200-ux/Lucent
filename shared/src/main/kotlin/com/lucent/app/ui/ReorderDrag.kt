@@ -13,8 +13,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,7 +48,6 @@ class ReorderDragState internal constructor() {
 
     var draggingId: Long? by mutableStateOf(null)
 
-    var dragX: Float by mutableFloatStateOf(0f)
     var dragY: Float by mutableFloatStateOf(0f)
 
     var moved: Boolean by mutableStateOf(false)
@@ -73,7 +70,6 @@ class ReorderDragState internal constructor() {
         settling = false
         settleOrder = null
         draggingId = id
-        dragX = 0f
         dragY = 0f
         moved = false
         gapBeforeId = null
@@ -118,7 +114,6 @@ class ReorderDragState internal constructor() {
         settling = false
         settleOrder = null
         draggingId = null
-        dragX = 0f
         dragY = 0f
         moved = false
         gapBeforeId = null
@@ -211,28 +206,8 @@ private fun LazyListState.visibleSlots(): ReorderSlots {
     )
 }
 
-private fun LazyGridState.visibleSlots(): ReorderSlots {
-    val info = layoutInfo
-    val cards = info.visibleItemsInfo.filter { it.key is Long }
-    return ReorderSlots(
-        keys = cards.map { it.key as Long },
-        offsets = cards.map { IntOffset(it.offset.x, it.offset.y) },
-        sizes = cards.map { IntSize(it.size.width, it.size.height) },
-        viewportLeft = 0,
-        viewportTop = info.viewportStartOffset,
-        viewportRight = info.viewportSize.width,
-        viewportBottom = info.viewportEndOffset
-    )
-}
-
 @Composable
 fun rememberListSlots(state: LazyListState): () -> ReorderSlots {
-    val cached = remember(state) { derivedStateOf { state.visibleSlots() } }
-    return remember(cached) { { cached.value } }
-}
-
-@Composable
-fun rememberGridSlots(state: LazyGridState): () -> ReorderSlots {
     val cached = remember(state) { derivedStateOf { state.visibleSlots() } }
     return remember(cached) { { cached.value } }
 }
@@ -257,22 +232,6 @@ private object ListScrollMemory {
 fun rememberRestoredListState(key: String): LazyListState {
     val restored = remember(key) { ListScrollMemory.read(key) }
     val state = rememberLazyListState(
-        initialFirstVisibleItemIndex = restored?.get(0) ?: 0,
-        initialFirstVisibleItemScrollOffset = restored?.get(1) ?: 0
-    )
-    LaunchedEffect(state, key) {
-        snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
-            .collect { (index, offset) ->
-                if (state.layoutInfo.totalItemsCount > 1) ListScrollMemory.write(key, index, offset)
-            }
-    }
-    return state
-}
-
-@Composable
-fun rememberRestoredGridState(key: String): LazyGridState {
-    val restored = remember(key) { ListScrollMemory.read(key) }
-    val state = rememberLazyGridState(
         initialFirstVisibleItemIndex = restored?.get(0) ?: 0,
         initialFirstVisibleItemScrollOffset = restored?.get(1) ?: 0
     )
@@ -324,12 +283,10 @@ fun Modifier.reorderableItem(
             if (!enabled) return@pointerInput
             val slop = viewConfiguration.touchSlop
             var grabbedAt = Offset.Zero
-            var travelledX = 0f
             var travelledY = 0f
             detectDragGesturesAfterLongPress(
                 onDragStart = { local ->
                     grabbedAt = local
-                    travelledX = 0f
                     travelledY = 0f
                     state.begin(id)
                     press()
@@ -345,62 +302,11 @@ fun Modifier.reorderableItem(
                 onDragCancel = { state.cancel() },
                 onDrag = { change, amount ->
                     change.consume()
-                    travelledX += amount.x
                     travelledY += amount.y
-                    state.dragX = travelledX
                     state.dragY = travelledY
-                    if (!state.moved && (abs(travelledX) > slop || abs(travelledY) > slop)) state.moved = true
+                    if (!state.moved && abs(travelledY) > slop) state.moved = true
                     val top = listState.topOf(id)
                     val (b, a) = listState.gapAtY(top + grabbedAt.y + travelledY, id)
-                    state.gapBeforeId = b
-                    state.gapAfterId = a
-                }
-            )
-        }
-}
-
-fun Modifier.reorderableGridItem(
-    id: Long,
-    enabled: Boolean,
-    gridState: LazyGridState,
-    state: ReorderDragState,
-    onLongPress: () -> Unit,
-    onDrop: (beforeId: Long?, afterId: Long?) -> Unit
-): Modifier = composed {
-    val press by rememberUpdatedState(onLongPress)
-    val drop by rememberUpdatedState(onDrop)
-    this
-        .pointerInput(id, enabled) {
-            if (!enabled) return@pointerInput
-            val slop = viewConfiguration.touchSlop
-            var grabbedAt = Offset.Zero
-            var travelledX = 0f
-            var travelledY = 0f
-            detectDragGesturesAfterLongPress(
-                onDragStart = { local ->
-                    grabbedAt = local
-                    travelledX = 0f
-                    travelledY = 0f
-                    state.begin(id)
-                    press()
-                },
-                onDragEnd = {
-                    val slots = gridState.visibleSlots()
-                    val from = slots.offsetOf(id)
-                    val landing = slots.targetFor(id, id, state.gapBeforeId, state.gapAfterId)
-                    val moved = landing != null && landing != from
-                    val (b, a) = state.finish(if (moved) slots.visibleKeys() else null)
-                    drop(b, a)
-                },
-                onDragCancel = { state.cancel() },
-                onDrag = { change, amount ->
-                    change.consume()
-                    travelledX += amount.x
-                    travelledY += amount.y
-                    state.dragX = travelledX
-                    state.dragY = travelledY
-                    if (!state.moved && (abs(travelledX) > slop || abs(travelledY) > slop)) state.moved = true
-                    val (b, a) = gridState.gapAt(gridState.originOf(id) + grabbedAt + Offset(travelledX, travelledY), id)
                     state.gapBeforeId = b
                     state.gapAfterId = a
                 }
@@ -435,26 +341,20 @@ fun Modifier.reorderVisuals(
     val layout = if (active) slots() else null
     val target = layout?.targetFor(id, state.draggingId, state.gapBeforeId, state.gapAfterId)
     val positioned = target != null
-    val targetX = target?.x?.toFloat() ?: 0f
     val targetY = target?.y?.toFloat() ?: 0f
     val at = layout?.offsetOf(id)
-    val atX = at?.x?.toFloat() ?: 0f
     val atY = at?.y?.toFloat() ?: 0f
-    val travelX = remember(token) { Animatable(targetX) }
     val travelY = remember(token) { Animatable(targetY) }
-    val returnX = remember(token) { Animatable(0f) }
     val returnY = remember(token) { Animatable(0f) }
     val seed = (id % JELLY_SEEDS).toInt() * JELLY_SEED_STEP
     val travelSpec = if (motion) JELLY_SPRING else JELLY_STILL
     val density = LocalDensity.current
     val bob = with(density) { JELLY_BOB.toPx() }
-    LaunchedEffect(token, positioned, inHand, mine, targetX, targetY, atX, atY) {
+    LaunchedEffect(token, positioned, inHand, mine, targetY, atY) {
         if (!positioned || inHand) return@LaunchedEffect
         if (mine) {
-            launch { returnX.animateTo(targetX - atX - state.dragX, travelSpec) }
             launch { returnY.animateTo(targetY - atY - state.dragY, travelSpec) }
         } else {
-            launch { travelX.animateTo(targetX, travelSpec) }
             launch { travelY.animateTo(targetY, travelSpec) }
         }
     }
@@ -466,24 +366,22 @@ fun Modifier.reorderVisuals(
             val here = live?.offsetOf(id)
             if (live != null && here != null) {
                 val size = live.sizeOf(id)
-                val lowX = (live.viewportLeft - (here.x + (size?.width ?: 0))).toFloat()
-                val highX = (live.viewportRight - here.x).toFloat()
-                val lowY = (live.viewportTop - (here.y + (size?.height ?: 0))).toFloat()
-                val highY = (live.viewportBottom - here.y).toFloat()
+                val lowY = (live.viewportTop - here.y).toFloat()
+                val highY = (live.viewportBottom - (here.y + (size?.height ?: 0))).toFloat()
                 if (inHand) {
-                    translationX = boundedTravel(state.dragX, lowX, highX)
+                    translationX = 0f
                     translationY = boundedTravel(state.dragY, lowY, highY)
                 } else if (mine) {
-                    translationX = boundedTravel(state.dragX + returnX.value, lowX, highX)
+                    translationX = 0f
                     translationY = boundedTravel(state.dragY + returnY.value, lowY, highY)
                 } else {
                     var dy = travelY.value - here.y
                     if (motion) dy += bob * jellyPhase(phase, seed) * wobble * JELLY_WOBBLE_GAIN
-                    translationX = travelX.value - here.x
+                    translationX = 0f
                     translationY = dy
                 }
             } else {
-                translationX = if (inHand) state.dragX else 0f
+                translationX = 0f
                 translationY = if (inHand) state.dragY else 0f
             }
             if (mine || lift > JELLY_LIFT_MIN) {
@@ -563,30 +461,15 @@ private fun LazyListState.topOf(id: Long): Float =
 private fun LazyListState.gapAtY(y: Float, dragged: Long): Pair<Long?, Long?> {
     val cards = layoutInfo.visibleItemsInfo.filter { (it.key as? Long)?.let { k -> k != dragged } == true }
     if (cards.isEmpty()) return null to null
+    val firstCard = cards.first()
+    if (y <= firstCard.offset + firstCard.size / 2f) {
+        return null to (firstCard.key as Long)
+    }
     var before: Long? = null
     var after: Long? = null
     for (item in cards) {
         val mid = item.offset + item.size / 2f
         if (y >= mid) before = item.key as Long else { after = item.key as Long; break }
-    }
-    return before to after
-}
-
-private fun LazyGridState.originOf(id: Long): Offset =
-    layoutInfo.visibleItemsInfo.firstOrNull { it.key == id }?.offset
-        ?.let { Offset(it.x.toFloat(), it.y.toFloat()) } ?: Offset.Zero
-
-private fun LazyGridState.gapAt(p: Offset, dragged: Long): Pair<Long?, Long?> {
-    val cards = layoutInfo.visibleItemsInfo.filter { (it.key as? Long)?.let { k -> k != dragged } == true }
-    if (cards.isEmpty()) return null to null
-    var before: Long? = null
-    var after: Long? = null
-    for (item in cards) {
-        val cx = item.offset.x + item.size.width / 2f
-        val cy = item.offset.y + item.size.height / 2f
-        val pastIt = p.y > cy + item.size.height / 2f ||
-            (abs(p.y - cy) <= item.size.height / 2f && p.x >= cx)
-        if (pastIt) before = item.key as Long else { after = item.key as Long; break }
     }
     return before to after
 }

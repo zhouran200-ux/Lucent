@@ -3,6 +3,7 @@ package com.lucent.app.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -16,17 +17,22 @@ private object SettingsKeys {
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val PALETTE = stringPreferencesKey("palette")
     val FONT = stringPreferencesKey("font")
+    val FONT_SCALE = floatPreferencesKey("font_scale")
+    val LINE_SPACING = floatPreferencesKey("line_spacing")
+    val LETTER_SPACING = floatPreferencesKey("letter_spacing")
     val DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("dynamic_color_enabled")
 
     val BASE_URL_ENC = stringPreferencesKey("base_url_enc")
     val API_SPEC_ENC = stringPreferencesKey("api_spec_enc")
     val MODEL_ENC = stringPreferencesKey("model_enc")
+    val CUSTOM_USER_AGENT_ENC = stringPreferencesKey("custom_user_agent_enc")
     val ASSISTANT_NAME_ENC = stringPreferencesKey("assistant_name_enc")
     val ASSISTANT_STYLE_ENC = stringPreferencesKey("assistant_style_enc")
 
     val LEGACY_BASE_URL = stringPreferencesKey("base_url")
     val LEGACY_API_SPEC = stringPreferencesKey("api_spec")
     val LEGACY_MODEL = stringPreferencesKey("model")
+    val LEGACY_CUSTOM_USER_AGENT = stringPreferencesKey("custom_user_agent")
     val LEGACY_ASSISTANT_NAME = stringPreferencesKey("assistant_name")
     val LEGACY_ASSISTANT_STYLE = stringPreferencesKey("assistant_style")
 
@@ -44,15 +50,12 @@ private object SettingsKeys {
 
     val NOTES_SORT = stringPreferencesKey("notes_sort")
     val SESSION_SNAPSHOT = stringPreferencesKey("session_snapshot")
-    val TASKS_SORT = stringPreferencesKey("tasks_sort")
-    val NOTEBOOKS_SORT = stringPreferencesKey("notebooks_sort")
     val NOTEBOOK_OPENS_ENC = stringPreferencesKey("notebook_opens_enc")
     val NOTEBOOK_OPENS_LEGACY = stringPreferencesKey("notebook_opens")
 
     val AUTO_BACKUP = stringPreferencesKey("auto_backup_state")
 
     val NOTE_HISTORY_ENABLED = booleanPreferencesKey("note_history_enabled")
-    val TASK_HISTORY_ENABLED = booleanPreferencesKey("task_history_enabled")
 
     val MEMORY_TIER = stringPreferencesKey("memory_tier")
     val WEB_SEARCH_ENABLED = booleanPreferencesKey("web_search_enabled")
@@ -154,7 +157,8 @@ private object SettingsKeys {
 
 const val DEFAULT_ASSISTANT_STYLE = "lively and friendly, relaxed and natural."
 
-class SettingsRepository(private val context: Context) {
+class SettingsRepository(context: Context) {
+    private val context: Context = context.applicationContext
 
     private fun secret(
         prefs: androidx.datastore.preferences.core.Preferences,
@@ -181,22 +185,38 @@ class SettingsRepository(private val context: Context) {
     val assistantStyle: Flow<String> = context.settingsDataStore.data.map {
         secret(it, SettingsKeys.ASSISTANT_STYLE_ENC, SettingsKeys.LEGACY_ASSISTANT_STYLE, "")
     }
+    val customUserAgent: Flow<String> = context.settingsDataStore.data.map {
+        secret(it, SettingsKeys.CUSTOM_USER_AGENT_ENC, SettingsKeys.LEGACY_CUSTOM_USER_AGENT, "")
+    }
 
     val themeMode: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.THEME_MODE] ?: "system" }
     val palette: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.PALETTE] ?: "CYCLE" }
     val font: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.FONT] ?: "system" }
+    val fontScale: Flow<Float> = context.settingsDataStore.data.map { it[SettingsKeys.FONT_SCALE] ?: 1.0f }
+    val lineSpacing: Flow<Float> = context.settingsDataStore.data.map { it[SettingsKeys.LINE_SPACING] ?: 1.2f }
+    val letterSpacing: Flow<Float> = context.settingsDataStore.data.map { it[SettingsKeys.LETTER_SPACING] ?: 0.0f }
 
     val dynamicColorEnabled: Flow<Boolean> =
         context.settingsDataStore.data.map { it[SettingsKeys.DYNAMIC_COLOR_ENABLED] ?: false }
 
-    data class DisplayPrefs(val themeMode: String, val palette: String, val font: String)
+    data class DisplayPrefs(
+        val themeMode: String,
+        val palette: String,
+        val font: String,
+        val fontScale: Float = 1.0f,
+        val lineSpacing: Float = 1.2f,
+        val letterSpacing: Float = 0.0f
+    )
 
     suspend fun displayPrefsOnce(): DisplayPrefs {
         val prefs = context.settingsDataStore.data.first()
         return DisplayPrefs(
             themeMode = prefs[SettingsKeys.THEME_MODE] ?: "system",
             palette = prefs[SettingsKeys.PALETTE] ?: "CYCLE",
-            font = prefs[SettingsKeys.FONT] ?: "system"
+            font = prefs[SettingsKeys.FONT] ?: "system",
+            fontScale = prefs[SettingsKeys.FONT_SCALE] ?: 1.0f,
+            lineSpacing = prefs[SettingsKeys.LINE_SPACING] ?: 1.2f,
+            letterSpacing = prefs[SettingsKeys.LETTER_SPACING] ?: 0.0f
         )
     }
 
@@ -205,32 +225,29 @@ class SettingsRepository(private val context: Context) {
         val appLockEnabled: Boolean,
         val startupLoggingEnabled: Boolean,
         val systemIntegrationEnabled: Boolean,
-        val appLanguage: String = "system",
+        val appLanguage: String = "zh",
         val assistantName: String = "Lucent",
         val backgroundAnimationEnabled: Boolean = true,
-        val splashEnabled: Boolean = true,
+        val splashEnabled: Boolean = false,
         val splashStyle: String = SplashStyle.DEFAULT.key,
-        val autoBackup: AutoBackup.State = AutoBackup.State.EMPTY,
         val dynamicColor: Boolean = false,
         val notesSort: String = "recent",
-        val tasksSort: String = "recent",
-        val notebooksSort: String = "recent",
         val sessionSnapshot: String = "",
         val assistantStyle: String = "",
         val baseUrl: String = "",
         val apiSpec: String = "openai",
         val apiKey: String = "",
         val model: String = "",
+        val customUserAgent: String = "",
         val apiProfilesJson: String = "",
         val apiProfileSelected: Int = 0,
         val noteHistoryEnabled: Boolean = true,
-        val taskHistoryEnabled: Boolean = true,
         val crashShieldEnabled: Boolean = false,
         val blackoutEnabled: Boolean = false,
         val pwSelfDestructEnabled: Boolean = false,
-        val pwFirstRoundLimit: Int = PasswordAttempts.DEFAULT_FIRST_ROUND_LIMIT,
-        val pwLaterRoundLimit: Int = PasswordAttempts.DEFAULT_LATER_ROUND_LIMIT,
-        val pwSelfDestructThreshold: Int = PasswordAttempts.DEFAULT_SELF_DESTRUCT_THRESHOLD,
+        val pwFirstRoundLimit: Int = 5,
+        val pwLaterRoundLimit: Int = 3,
+        val pwSelfDestructThreshold: Int = 25,
         val passwordAttemptState: String = "",
         val appLockBiometricEnabled: Boolean = false,
         val appLockHelloEnabled: Boolean = false,
@@ -239,7 +256,6 @@ class SettingsRepository(private val context: Context) {
         val markdownEnabled: Boolean = false,
         val richTextEnabled: Boolean = false,
         val linksEnabled: Boolean = false,
-        val typingHapticsEnabled: Boolean = true,
         val assistantConfirmToolsEnabled: Boolean = true,
         val localModelEnabled: Boolean = false,
         val localToolsEnabled: Boolean = false,
@@ -280,42 +296,39 @@ class SettingsRepository(private val context: Context) {
             display = DisplayPrefs(
                 themeMode = prefs[SettingsKeys.THEME_MODE] ?: "system",
                 palette = prefs[SettingsKeys.PALETTE] ?: "CYCLE",
-                font = prefs[SettingsKeys.FONT] ?: "system"
+                font = prefs[SettingsKeys.FONT] ?: "system",
+                fontScale = prefs[SettingsKeys.FONT_SCALE] ?: 1.0f,
+                lineSpacing = prefs[SettingsKeys.LINE_SPACING] ?: 1.2f,
+                letterSpacing = prefs[SettingsKeys.LETTER_SPACING] ?: 0.0f
             ),
             appLockEnabled = prefs[SettingsKeys.APP_LOCK_ENABLED] ?: false,
             startupLoggingEnabled = prefs[SettingsKeys.STARTUP_LOGGING_ENABLED] ?: false,
             systemIntegrationEnabled = prefs[SettingsKeys.SYSTEM_INTEGRATION_ENABLED] ?: false,
-            appLanguage = prefs[SettingsKeys.APP_LANGUAGE] ?: "system",
+            appLanguage = "zh",
             assistantName = secret(prefs, SettingsKeys.ASSISTANT_NAME_ENC, SettingsKeys.LEGACY_ASSISTANT_NAME, "Lucent"),
             backgroundAnimationEnabled = prefs[SettingsKeys.BACKGROUND_ANIMATION_ENABLED] ?: true,
-            splashEnabled = prefs[SettingsKeys.SPLASH_ENABLED] ?: true,
+            splashEnabled = prefs[SettingsKeys.SPLASH_ENABLED] ?: false,
             splashStyle = prefs[SettingsKeys.SPLASH_STYLE] ?: SplashStyle.DEFAULT.key,
-            autoBackup = AutoBackup.State.fromJson(prefs[SettingsKeys.AUTO_BACKUP] ?: ""),
             dynamicColor = prefs[SettingsKeys.DYNAMIC_COLOR_ENABLED] ?: false,
             notesSort = prefs[SettingsKeys.NOTES_SORT] ?: "recent",
-            tasksSort = prefs[SettingsKeys.TASKS_SORT] ?: "recent",
-            notebooksSort = prefs[SettingsKeys.NOTEBOOKS_SORT] ?: "recent",
             sessionSnapshot = prefs[SettingsKeys.SESSION_SNAPSHOT] ?: "",
             assistantStyle = secret(prefs, SettingsKeys.ASSISTANT_STYLE_ENC, SettingsKeys.LEGACY_ASSISTANT_STYLE, ""),
             baseUrl = secret(prefs, SettingsKeys.BASE_URL_ENC, SettingsKeys.LEGACY_BASE_URL, ""),
             apiSpec = secret(prefs, SettingsKeys.API_SPEC_ENC, SettingsKeys.LEGACY_API_SPEC, "openai"),
             apiKey = LocalSecrets.decrypt(prefs[SettingsKeys.API_KEY_ENC] ?: prefs[SettingsKeys.LEGACY_API_KEY] ?: ""),
             model = secret(prefs, SettingsKeys.MODEL_ENC, SettingsKeys.LEGACY_MODEL, ""),
+            customUserAgent = secret(prefs, SettingsKeys.CUSTOM_USER_AGENT_ENC, SettingsKeys.LEGACY_CUSTOM_USER_AGENT, ""),
             apiProfilesJson = LocalSecrets.decrypt(
                 prefs[SettingsKeys.API_PROFILES_ENC] ?: prefs[SettingsKeys.LEGACY_API_PROFILES] ?: ""
             ),
             apiProfileSelected = prefs[SettingsKeys.API_PROFILE_SELECTED] ?: 0,
             noteHistoryEnabled = prefs[SettingsKeys.NOTE_HISTORY_ENABLED] ?: true,
-            taskHistoryEnabled = prefs[SettingsKeys.TASK_HISTORY_ENABLED] ?: true,
             crashShieldEnabled = prefs[SettingsKeys.CRASH_SHIELD_ENABLED] ?: false,
             blackoutEnabled = prefs[SettingsKeys.BLACKOUT_ENABLED] ?: false,
             pwSelfDestructEnabled = prefs[SettingsKeys.PW_SELF_DESTRUCT_ENABLED] ?: false,
-            pwFirstRoundLimit = prefs[SettingsKeys.PW_FIRST_ROUND_LIMIT]
-                ?: PasswordAttempts.DEFAULT_FIRST_ROUND_LIMIT,
-            pwLaterRoundLimit = prefs[SettingsKeys.PW_LATER_ROUND_LIMIT]
-                ?: PasswordAttempts.DEFAULT_LATER_ROUND_LIMIT,
-            pwSelfDestructThreshold = prefs[SettingsKeys.PW_SELF_DESTRUCT_THRESHOLD]
-                ?: PasswordAttempts.DEFAULT_SELF_DESTRUCT_THRESHOLD,
+            pwFirstRoundLimit = prefs[SettingsKeys.PW_FIRST_ROUND_LIMIT] ?: 5,
+            pwLaterRoundLimit = prefs[SettingsKeys.PW_LATER_ROUND_LIMIT] ?: 3,
+            pwSelfDestructThreshold = prefs[SettingsKeys.PW_SELF_DESTRUCT_THRESHOLD] ?: 25,
             passwordAttemptState = prefs[SettingsKeys.PW_ATTEMPT_STATE] ?: "",
             appLockBiometricEnabled = prefs[SettingsKeys.APP_LOCK_BIOMETRIC_ENABLED] ?: false,
             appLockHelloEnabled = false,
@@ -324,7 +337,6 @@ class SettingsRepository(private val context: Context) {
             markdownEnabled = prefs[SettingsKeys.MARKDOWN_ENABLED] ?: false,
             richTextEnabled = prefs[SettingsKeys.RICH_TEXT_ENABLED] ?: false,
             linksEnabled = prefs[SettingsKeys.LINKS_ENABLED] ?: false,
-            typingHapticsEnabled = prefs[SettingsKeys.TYPING_HAPTICS] ?: true,
             assistantConfirmToolsEnabled = prefs[SettingsKeys.ASSISTANT_CONFIRM_TOOLS] ?: true,
             localModelEnabled = prefs[SettingsKeys.LOCAL_MODEL_ENABLED] ?: false,
             localToolsEnabled = prefs[SettingsKeys.LOCAL_TOOLS_ENABLED] ?: false,
@@ -416,28 +428,28 @@ class SettingsRepository(private val context: Context) {
     }
 
     val pwFirstRoundLimit: Flow<Int> = context.settingsDataStore.data.map {
-        it[SettingsKeys.PW_FIRST_ROUND_LIMIT] ?: PasswordAttempts.DEFAULT_FIRST_ROUND_LIMIT
+        it[SettingsKeys.PW_FIRST_ROUND_LIMIT] ?: 5
     }
     val pwLaterRoundLimit: Flow<Int> = context.settingsDataStore.data.map {
-        it[SettingsKeys.PW_LATER_ROUND_LIMIT] ?: PasswordAttempts.DEFAULT_LATER_ROUND_LIMIT
+        it[SettingsKeys.PW_LATER_ROUND_LIMIT] ?: 3
     }
     suspend fun setPwFirstRoundLimit(value: Int) {
         context.settingsDataStore.edit {
-            it[SettingsKeys.PW_FIRST_ROUND_LIMIT] = value.coerceIn(PasswordAttempts.ROUND_LIMIT_RANGE)
+            it[SettingsKeys.PW_FIRST_ROUND_LIMIT] = value.coerceIn(1..10)
         }
-        SettingsCache.pwFirstRoundLimit = value.coerceIn(PasswordAttempts.ROUND_LIMIT_RANGE)
+        SettingsCache.pwFirstRoundLimit = value.coerceIn(1..10)
     }
     suspend fun setPwLaterRoundLimit(value: Int) {
         context.settingsDataStore.edit {
-            it[SettingsKeys.PW_LATER_ROUND_LIMIT] = value.coerceIn(PasswordAttempts.ROUND_LIMIT_RANGE)
+            it[SettingsKeys.PW_LATER_ROUND_LIMIT] = value.coerceIn(1..10)
         }
-        SettingsCache.pwLaterRoundLimit = value.coerceIn(PasswordAttempts.ROUND_LIMIT_RANGE)
+        SettingsCache.pwLaterRoundLimit = value.coerceIn(1..10)
     }
 
     val pwSelfDestructEnabled: Flow<Boolean> =
         context.settingsDataStore.data.map { it[SettingsKeys.PW_SELF_DESTRUCT_ENABLED] ?: false }
     val pwSelfDestructThreshold: Flow<Int> = context.settingsDataStore.data.map {
-        it[SettingsKeys.PW_SELF_DESTRUCT_THRESHOLD] ?: PasswordAttempts.DEFAULT_SELF_DESTRUCT_THRESHOLD
+        it[SettingsKeys.PW_SELF_DESTRUCT_THRESHOLD] ?: 25
     }
     suspend fun setPwSelfDestructEnabled(value: Boolean) {
         context.settingsDataStore.edit { it[SettingsKeys.PW_SELF_DESTRUCT_ENABLED] = value }
@@ -445,9 +457,9 @@ class SettingsRepository(private val context: Context) {
     }
     suspend fun setPwSelfDestructThreshold(value: Int) {
         context.settingsDataStore.edit {
-            it[SettingsKeys.PW_SELF_DESTRUCT_THRESHOLD] = value.coerceIn(PasswordAttempts.SELF_DESTRUCT_RANGE)
+            it[SettingsKeys.PW_SELF_DESTRUCT_THRESHOLD] = value.coerceIn(10..200)
         }
-        SettingsCache.pwSelfDestructThreshold = value.coerceIn(PasswordAttempts.SELF_DESTRUCT_RANGE)
+        SettingsCache.pwSelfDestructThreshold = value.coerceIn(10..200)
     }
 
     val openLinksExternally: Flow<Boolean> =
@@ -457,13 +469,9 @@ class SettingsRepository(private val context: Context) {
         SettingsCache.openLinksExternally = value
     }
 
-    val appLanguage: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.APP_LANGUAGE] ?: "system" }
-    suspend fun setAppLanguage(value: String) {
-        context.settingsDataStore.edit { it[SettingsKeys.APP_LANGUAGE] = value }
-        SettingsCache.appLanguage = value
-    }
-    suspend fun appLanguageOnce(): String =
-        context.settingsDataStore.data.first()[SettingsKeys.APP_LANGUAGE] ?: "system"
+    val appLanguage: Flow<String> = kotlinx.coroutines.flow.flowOf("zh")
+    suspend fun setAppLanguage(value: String) {}
+    suspend fun appLanguageOnce(): String = "zh"
 
     val localModelEnabled: Flow<Boolean> = context.settingsDataStore.data.map { it[SettingsKeys.LOCAL_MODEL_ENABLED] ?: false }
 
@@ -555,29 +563,12 @@ class SettingsRepository(private val context: Context) {
 
     val noteHistoryEnabled: Flow<Boolean> =
         context.settingsDataStore.data.map { it[SettingsKeys.NOTE_HISTORY_ENABLED] ?: true }
-    val taskHistoryEnabled: Flow<Boolean> =
-        context.settingsDataStore.data.map { it[SettingsKeys.TASK_HISTORY_ENABLED] ?: true }
     suspend fun setNoteHistoryEnabled(value: Boolean) {
         context.settingsDataStore.edit { it[SettingsKeys.NOTE_HISTORY_ENABLED] = value }
         SettingsCache.noteHistoryEnabled = value
     }
-    suspend fun setTaskHistoryEnabled(value: Boolean) {
-        context.settingsDataStore.edit { it[SettingsKeys.TASK_HISTORY_ENABLED] = value }
-        SettingsCache.taskHistoryEnabled = value
-    }
-
-    val autoBackup: Flow<AutoBackup.State> = context.settingsDataStore.data
-        .map { AutoBackup.State.fromJson(it[SettingsKeys.AUTO_BACKUP] ?: "") }
-    suspend fun autoBackupOnce(): AutoBackup.State =
-        AutoBackup.State.fromJson(context.settingsDataStore.data.first()[SettingsKeys.AUTO_BACKUP] ?: "")
-    suspend fun setAutoBackup(state: AutoBackup.State) {
-        SettingsCache.autoBackup = state
-        context.settingsDataStore.edit { it[SettingsKeys.AUTO_BACKUP] = state.toJson() }
-    }
 
     val notesSort: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.NOTES_SORT] ?: "recent" }
-    val tasksSort: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.TASKS_SORT] ?: "recent" }
-    val notebooksSort: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.NOTEBOOKS_SORT] ?: "recent" }
 
     val memoryTier: Flow<String> = context.settingsDataStore.data.map {
         it[SettingsKeys.MEMORY_TIER] ?: MemoryTier.DEFAULT.key
@@ -585,10 +576,6 @@ class SettingsRepository(private val context: Context) {
 
     val webSearchEnabled: Flow<Boolean> = context.settingsDataStore.data.map {
         it[SettingsKeys.WEB_SEARCH_ENABLED] ?: false
-    }
-
-    val typingHapticsEnabled: Flow<Boolean> = context.settingsDataStore.data.map {
-        it[SettingsKeys.TYPING_HAPTICS] ?: true
     }
 
     val assistantConfirmToolsEnabled: Flow<Boolean> = context.settingsDataStore.data.map {
@@ -661,19 +648,6 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[SettingsKeys.SAVED_SEARCHES] = json }
     }
 
-    val harnessConfig: Flow<String> = context.settingsDataStore.data.map {
-        val stored = it[SettingsKeys.HARNESS_CONFIG_ENC] ?: return@map ""
-        LocalSecrets.decrypt(stored)
-    }
-
-    suspend fun setHarnessConfig(json: String) {
-        SettingsCache.harnessConfigJson = json
-        val sealed = LocalSecrets.encrypt(json)
-        context.settingsDataStore.edit { it[SettingsKeys.HARNESS_CONFIG_ENC] = sealed }
-    }
-
-    suspend fun harnessConfigOnce(): String =
-        LocalSecrets.decrypt(context.settingsDataStore.data.first()[SettingsKeys.HARNESS_CONFIG_ENC] ?: "")
     val customTemplatesJson: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.CUSTOM_TEMPLATES] ?: "[]" }
     suspend fun setCustomTemplatesJson(json: String) {
         context.settingsDataStore.edit { it[SettingsKeys.CUSTOM_TEMPLATES] = json }
@@ -686,47 +660,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setHiddenTemplatesJson(json: String) {
         context.settingsDataStore.edit { it[SettingsKeys.HIDDEN_TEMPLATES] = json }
     }
-    val cloudEnabled: Flow<Boolean> = context.settingsDataStore.data.map { it[SettingsKeys.CLOUD_ENABLED] ?: false }
-    suspend fun setCloudEnabled(value: Boolean) {
-        context.settingsDataStore.edit { it[SettingsKeys.CLOUD_ENABLED] = value }
-        SettingsCache.cloudEnabled = value
-    }
-    val cloudProvider: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.CLOUD_PROVIDER] ?: "Nutstore" }
-    suspend fun setCloudProvider(value: String) {
-        context.settingsDataStore.edit { it[SettingsKeys.CLOUD_PROVIDER] = value }
-        SettingsCache.cloudProvider = value
-    }
     val embeddingProvider: Flow<String> = context.settingsDataStore.data.map {
         it[SettingsKeys.EMBEDDING_PROVIDER] ?: "local"
     }
     suspend fun setEmbeddingProvider(value: String) {
         context.settingsDataStore.edit { it[SettingsKeys.EMBEDDING_PROVIDER] = value }
         SettingsCache.embeddingProvider = value
-    }
-    val cloudUrl: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.CLOUD_URL] ?: "" }
-    suspend fun setCloudUrl(value: String) {
-        context.settingsDataStore.edit { it[SettingsKeys.CLOUD_URL] = value }
-        SettingsCache.cloudUrl = value
-    }
-    val cloudUser: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.CLOUD_USER] ?: "" }
-    suspend fun setCloudUser(value: String) {
-        context.settingsDataStore.edit { it[SettingsKeys.CLOUD_USER] = value }
-        SettingsCache.cloudUser = value
-    }
-    val cloudPasswordEnc: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.CLOUD_PASSWORD_ENC] ?: "" }
-    suspend fun setCloudPasswordEnc(value: String) {
-        context.settingsDataStore.edit { it[SettingsKeys.CLOUD_PASSWORD_ENC] = value }
-        SettingsCache.cloudPasswordEnc = value
-    }
-    val cloudFolder: Flow<String> = context.settingsDataStore.data.map { it[SettingsKeys.CLOUD_FOLDER] ?: "Lucent" }
-    suspend fun setCloudFolder(value: String) {
-        context.settingsDataStore.edit { it[SettingsKeys.CLOUD_FOLDER] = value }
-        SettingsCache.cloudFolder = value
-    }
-    val cloudAutoBackup: Flow<Boolean> = context.settingsDataStore.data.map { it[SettingsKeys.CLOUD_AUTO_BACKUP] ?: false }
-    suspend fun setCloudAutoBackup(value: Boolean) {
-        context.settingsDataStore.edit { it[SettingsKeys.CLOUD_AUTO_BACKUP] = value }
-        SettingsCache.cloudAutoBackup = value
     }
 
     val linksEnabled: Flow<Boolean> = context.settingsDataStore.data.map { it[SettingsKeys.LINKS_ENABLED] ?: false }
@@ -823,6 +762,11 @@ class SettingsRepository(private val context: Context) {
         SettingsCache.model = value
         putSecret(SettingsKeys.MODEL_ENC, SettingsKeys.LEGACY_MODEL, value)
     }
+    suspend fun setCustomUserAgent(value: String) {
+        val trimmed = value.trim()
+        SettingsCache.customUserAgent = trimmed
+        putSecret(SettingsKeys.CUSTOM_USER_AGENT_ENC, SettingsKeys.LEGACY_CUSTOM_USER_AGENT, trimmed)
+    }
 
 
     val modelRecents: Flow<List<String>> =
@@ -902,6 +846,28 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[SettingsKeys.FONT] = value }
         SettingsCache.font = value
     }
+    suspend fun setFontScale(value: Float) {
+        context.settingsDataStore.edit { it[SettingsKeys.FONT_SCALE] = value }
+        SettingsCache.fontScale = value
+    }
+    suspend fun setLineSpacing(value: Float) {
+        context.settingsDataStore.edit { it[SettingsKeys.LINE_SPACING] = value }
+        SettingsCache.lineSpacing = value
+    }
+    suspend fun setLetterSpacing(value: Float) {
+        context.settingsDataStore.edit { it[SettingsKeys.LETTER_SPACING] = value }
+        SettingsCache.letterSpacing = value
+    }
+    suspend fun resetTypographyDefaults() {
+        context.settingsDataStore.edit {
+            it[SettingsKeys.FONT_SCALE] = 1.0f
+            it[SettingsKeys.LINE_SPACING] = 1.2f
+            it[SettingsKeys.LETTER_SPACING] = 0.0f
+        }
+        SettingsCache.fontScale = 1.0f
+        SettingsCache.lineSpacing = 1.2f
+        SettingsCache.letterSpacing = 0.0f
+    }
     suspend fun setDynamicColorEnabled(value: Boolean) {
         context.settingsDataStore.edit { it[SettingsKeys.DYNAMIC_COLOR_ENABLED] = value }
         SettingsCache.dynamicColor = value
@@ -925,14 +891,6 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun sessionSnapshotOnce(): String =
         context.settingsDataStore.data.first()[SettingsKeys.SESSION_SNAPSHOT] ?: ""
-    suspend fun setTasksSort(value: String) {
-        context.settingsDataStore.edit { it[SettingsKeys.TASKS_SORT] = value }
-        SettingsCache.tasksSort = value
-    }
-    suspend fun setNotebooksSort(value: String) {
-        context.settingsDataStore.edit { it[SettingsKeys.NOTEBOOKS_SORT] = value }
-        SettingsCache.notebooksSort = value
-    }
     val notebookOpens: Flow<String> = context.settingsDataStore.data.map { prefs ->
         prefs[SettingsKeys.NOTEBOOK_OPENS_ENC]?.let { LocalSecrets.decrypt(it) } ?: "{}"
     }
@@ -962,10 +920,7 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[SettingsKeys.WEB_SEARCH_ENABLED] = value }
         SettingsCache.webSearchEnabled = value
     }
-    suspend fun setTypingHapticsEnabled(value: Boolean) {
-        context.settingsDataStore.edit { it[SettingsKeys.TYPING_HAPTICS] = value }
-        SettingsCache.typingHapticsEnabled = value
-    }
+    suspend fun setTypingHapticsEnabled(value: Boolean) {}
 
     suspend fun setApiKey(value: String) {
         SettingsCache.apiKey = value
@@ -1005,13 +960,16 @@ class SettingsRepository(private val context: Context) {
                 prefs.remove(SettingsKeys.LEGACY_BASE_URL)
                 prefs.remove(SettingsKeys.LEGACY_API_SPEC)
                 prefs.remove(SettingsKeys.LEGACY_MODEL)
+                prefs.remove(SettingsKeys.LEGACY_CUSTOM_USER_AGENT)
             } else {
                 prefs.remove(SettingsKeys.BASE_URL_ENC)
                 prefs.remove(SettingsKeys.MODEL_ENC)
                 prefs.remove(SettingsKeys.API_KEY_ENC)
+                prefs.remove(SettingsKeys.CUSTOM_USER_AGENT_ENC)
                 prefs.remove(SettingsKeys.LEGACY_API_KEY)
                 prefs.remove(SettingsKeys.LEGACY_BASE_URL)
                 prefs.remove(SettingsKeys.LEGACY_MODEL)
+                prefs.remove(SettingsKeys.LEGACY_CUSTOM_USER_AGENT)
             }
         }
     }

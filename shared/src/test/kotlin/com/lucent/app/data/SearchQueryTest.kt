@@ -22,29 +22,11 @@ class SearchQueryTest {
         attachments = attachments
     )
 
-    private fun task(
-        title: String = "",
-        notes: String = "",
-        isDone: Boolean = false,
-        pinned: Boolean = false,
-        priority: Int = 0,
-        dueAt: Long? = null,
-        reminderEnabled: Boolean = false,
-        subtasksJson: String = "[]",
-        attachments: String = "[]"
-    ) = Task(
-        title = title, notes = notes, isDone = isDone, pinned = pinned,
-        priority = priority, dueAt = dueAt, reminderEnabled = reminderEnabled,
-        subtasks = subtasksJson, attachments = attachments
-    )
-
-
     @Test
     fun blankQueryIsEmptyAndMatchesEverything() {
         val q = SearchQuery.parse("   ")
         assertTrue(q.isEmpty)
         assertTrue(q.matches(note(title = "anything")))
-        assertTrue(q.matches(task(title = "anything")))
     }
 
     @Test
@@ -74,7 +56,6 @@ class SearchQueryTest {
         assertTrue(q.flags.isEmpty())
         assertTrue(q.has.isEmpty())
     }
-
 
     @Test
     fun allTermsMustAppearSomewhere() {
@@ -106,56 +87,11 @@ class SearchQueryTest {
     }
 
     @Test
-    fun taskOnlyFlagsNeverMatchNotes() {
-        assertFalse(SearchQuery.parse("is:done").matches(note(title = "Anything")))
-        assertFalse(SearchQuery.parse("is:overdue").matches(note(title = "Anything")))
-    }
-
-
-    @Test
-    fun taskFiltersApplyToTasks() {
-        val done = task(title = "Pay rent", isDone = true)
-        val pending = task(title = "Buy milk")
-        val pinned = task(title = "Top task", pinned = true)
-        val high = task(title = "Urgent", priority = TaskPriority.HIGH.value)
-        assertTrue(SearchQuery.parse("is:done").matches(done))
-        assertFalse(SearchQuery.parse("is:done").matches(pending))
-        assertTrue(SearchQuery.parse("is:pinned").matches(pinned))
-        assertFalse(SearchQuery.parse("is:pinned").matches(pending))
-        assertTrue(SearchQuery.parse("priority:high").matches(high))
-        assertFalse(SearchQuery.parse("priority:high").matches(task(title = "Low", priority = 0)))
-    }
-
-    @Test
-    fun dueWindowsFilterByClock() {
-        val now = 1_700_000_000_000L
-        val overdue = task(title = "Late", dueAt = now - 3_600_000L)
-        val todayDue = task(title = "Today", dueAt = now + 3_600_000L)
-        val noDue = task(title = "None")
-        assertTrue(SearchQuery.parse("due:overdue").matches(overdue, now))
-        assertFalse(SearchQuery.parse("due:overdue").matches(todayDue, now))
-        assertFalse(SearchQuery.parse("due:overdue").matches(noDue, now))
-        assertFalse(SearchQuery.parse("due:today").matches(noDue, now))
-    }
-
-    @Test
-    fun noteOnlyFiltersNeverMatchTasks() {
-        assertFalse(SearchQuery.parse("is:archived").matches(task(title = "Anything")))
-        assertFalse(SearchQuery.parse("is:checklist").matches(task(title = "Anything")))
-    }
-
-    @Test
-    fun tagFilterNeverMatchesTask() {
-        assertFalse(SearchQuery.parse("tag:work").matches(task(title = "Anything")))
-    }
-
-    @Test
     fun hasAttachmentRequiresRealAttachments() {
         val withFile = note(title = "Receipt", attachments = """[{"mime":"image/png","data":"1","name":"r.png"}]""")
         assertTrue(SearchQuery.parse("has:attachment").matches(withFile))
         assertFalse(SearchQuery.parse("has:attachment").matches(note(title = "Empty")))
     }
-
 
     @Test
     fun titleHitsOutrankBodyHits() {

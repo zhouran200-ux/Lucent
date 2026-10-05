@@ -24,32 +24,13 @@ object AppNavigation {
     var pendingNoteId by mutableStateOf<Long?>(null)
         private set
 
-    var pendingTaskId by mutableStateOf<Long?>(null)
-        private set
-
     var returnScreen by mutableStateOf<Screen?>(null)
         private set
 
     internal var settingsRoute by mutableStateOf(SettingsRoute.Root)
         private set
 
-
-    var terminalRequested by mutableStateOf(false)
-        private set
-
-    var terminalOpen by mutableStateOf(false)
-
-    fun requestTerminal() {
-        terminalRequested = true
-        requestedScreen = Screen.Assistant
-    }
-
-    fun consumeTerminal(): Boolean = terminalRequested.also { terminalRequested = false }
-
     var composeNoteRequested by mutableStateOf(false)
-        private set
-
-    var composeTaskRequested by mutableStateOf(false)
         private set
 
     var requestedPanel by mutableStateOf<HomePanel?>(null)
@@ -57,32 +38,34 @@ object AppNavigation {
     var requestedNotebookId by mutableStateOf<Long?>(null)
         private set
 
+    var activeNotebookId by mutableStateOf<Long?>(null)
+
+    var createNotebookRequested by mutableStateOf(false)
+        private set
+
     var pendingEditNoteId by mutableStateOf<Long?>(null)
         private set
 
-    var pendingEditTaskId by mutableStateOf<Long?>(null)
-        private set
+    fun requestCreateNotebook() {
+        createNotebookRequested = true
+        requestedScreen = Screen.Notebooks
+    }
+
+    fun consumeCreateNotebook(): Boolean {
+        val value = createNotebookRequested
+        createNotebookRequested = false
+        return value
+    }
 
     fun openNote(id: Long, from: Screen? = null) {
         pendingNoteId = id
         returnScreen = from
-        requestedScreen = Screen.Notes
-    }
-
-    fun openTask(id: Long, from: Screen? = null) {
-        pendingTaskId = id
-        returnScreen = from
-        requestedScreen = Screen.Tasks
+        requestedScreen = Screen.Notebooks
     }
 
     fun requestComposeNote() {
         composeNoteRequested = true
-        requestedScreen = Screen.Notes
-    }
-
-    fun requestComposeTask() {
-        composeTaskRequested = true
-        requestedScreen = Screen.Tasks
+        requestedScreen = Screen.Notebooks
     }
 
     fun requestScreen(screen: Screen) {
@@ -102,12 +85,7 @@ object AppNavigation {
 
     fun editNote(id: Long) {
         pendingEditNoteId = id
-        requestedScreen = Screen.Notes
-    }
-
-    fun editTask(id: Long) {
-        pendingEditTaskId = id
-        requestedScreen = Screen.Tasks
+        requestedScreen = Screen.Notebooks
     }
 
     internal fun rememberSettingsRoute(route: SettingsRoute) {
@@ -122,19 +100,13 @@ object AppNavigation {
 
     fun consumeNoteId(): Long? = pendingNoteId.also { pendingNoteId = null }
 
-    fun consumeTaskId(): Long? = pendingTaskId.also { pendingTaskId = null }
-
     fun consumeReturnScreen(): Screen? = returnScreen.also { returnScreen = null }
 
     fun consumeComposeNote(): Boolean = composeNoteRequested.also { composeNoteRequested = false }
 
-    fun consumeComposeTask(): Boolean = composeTaskRequested.also { composeTaskRequested = false }
-
     fun consumePanel(): HomePanel? = requestedPanel.also { requestedPanel = null }
 
     fun consumeEditNoteId(): Long? = pendingEditNoteId.also { pendingEditNoteId = null }
-
-    fun consumeEditTaskId(): Long? = pendingEditTaskId.also { pendingEditTaskId = null }
 
     private var backClaims by mutableStateOf(0)
 

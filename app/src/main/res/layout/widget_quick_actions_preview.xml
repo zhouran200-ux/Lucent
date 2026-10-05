@@ -11,9 +11,8 @@
     android:baselineAligned="false">
 
     <FrameLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="1"
         android:layout_margin="2dp"
         android:background="@drawable/widget_cell_bg">
         <ImageView
@@ -22,33 +21,5 @@
             android:layout_gravity="center"
             android:src="@drawable/ic_widget_note"
             android:contentDescription="@string/widget_note" />
-    </FrameLayout>
-
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:layout_margin="2dp"
-        android:background="@drawable/widget_cell_bg">
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_widget_task"
-            android:contentDescription="@string/widget_task" />
-    </FrameLayout>
-
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:layout_margin="2dp"
-        android:background="@drawable/widget_cell_bg">
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_widget_assistant"
-            android:contentDescription="@string/widget_ask" />
     </FrameLayout>
 </LinearLayout>

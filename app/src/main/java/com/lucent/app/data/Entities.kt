@@ -62,37 +62,6 @@ data class NoteEmbedding(
 }
 
 @Entity(
-    tableName = "tasks",
-    indices = [
-        Index(value = ["createdAt"]),
-        Index(value = ["isDone"]),
-        Index(value = ["trashedAt"])
-    ]
-)
-data class Task(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val title: String,
-    val isDone: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis(),
-    val attachments: String = "[]",
-    val dueAt: Long? = null,
-    val notes: String = "",
-    val completedAt: Long? = null,
-    val priority: Int = 0,
-    val pinned: Boolean = false,
-    val subtasks: String = "[]",
-    val repeatRule: String = "NONE",
-    val reminderEnabled: Boolean = false,
-    val trashedAt: Long? = null,
-    val manualOrder: Int = 0,
-    val isDraft: Boolean = false,
-    val draftSavedAt: Long? = null,
-    val hidden: Boolean = false,
-    val notesSpans: String = "",
-    val formatOverride: String? = null
-)
-
-@Entity(
     tableName = "note_versions",
     indices = [Index(value = ["noteId"])]
 )
@@ -104,21 +73,6 @@ data class NoteVersion(
     val tags: String = "",
     val isChecklist: Boolean = false,
     val checklist: String = "[]",
-    val savedAt: Long = System.currentTimeMillis()
-)
-
-@Entity(
-    tableName = "task_versions",
-    indices = [Index(value = ["taskId"])]
-)
-data class TaskVersion(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val taskId: Long,
-    val title: String,
-    val notes: String = "",
-    val subtasks: String = "[]",
-    val priority: Int = 0,
-    val dueAt: Long? = null,
     val savedAt: Long = System.currentTimeMillis()
 )
 
@@ -153,7 +107,6 @@ data class NotebookItem(
 ) {
     companion object {
         const val KIND_NOTE = "NOTE"
-        const val KIND_TASK = "TASK"
     }
 }
 

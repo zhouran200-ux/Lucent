@@ -22,6 +22,7 @@ class SettingsRepository(private val context: Context) {
         const val BASE_URL_ENC = "base_url_enc"
         const val API_SPEC_ENC = "api_spec_enc"
         const val MODEL_ENC = "model_enc"
+        const val CUSTOM_USER_AGENT_ENC = "custom_user_agent_enc"
         const val ASSISTANT_NAME_ENC = "assistant_name_enc"
         const val ASSISTANT_STYLE_ENC = "assistant_style_enc"
         const val ATTACHMENTS_MIGRATED = "attachments_migrated_v1"
@@ -183,6 +184,7 @@ class SettingsRepository(private val context: Context) {
     val model: Flow<String> = state.map { secret(it, K.MODEL_ENC, "") }
     val assistantName: Flow<String> = state.map { secret(it, K.ASSISTANT_NAME_ENC, "Lucent") }
     val assistantStyle: Flow<String> = state.map { secret(it, K.ASSISTANT_STYLE_ENC, "") }
+    val customUserAgent: Flow<String> = state.map { secret(it, K.CUSTOM_USER_AGENT_ENC, "") }
 
 
     val themeMode: Flow<String> = state.map { str(it, K.THEME_MODE) ?: "system" }
@@ -224,6 +226,7 @@ class SettingsRepository(private val context: Context) {
         val apiSpec: String = "openai",
         val apiKey: String = "",
         val model: String = "",
+        val customUserAgent: String = "",
         val apiProfilesJson: String = "",
         val apiProfileSelected: Int = 0,
         val noteHistoryEnabled: Boolean = true,
@@ -304,6 +307,7 @@ class SettingsRepository(private val context: Context) {
             apiSpec = secret(prefs, K.API_SPEC_ENC, "openai"),
             apiKey = secret(prefs, K.API_KEY_ENC, ""),
             model = secret(prefs, K.MODEL_ENC, ""),
+            customUserAgent = secret(prefs, K.CUSTOM_USER_AGENT_ENC, ""),
             apiProfilesJson = secret(prefs, K.API_PROFILES_ENC, ""),
             apiProfileSelected = int(prefs, K.API_PROFILE_SELECTED) ?: 0,
             noteHistoryEnabled = bool(prefs, K.NOTE_HISTORY_ENABLED) ?: true,
@@ -732,6 +736,13 @@ class SettingsRepository(private val context: Context) {
     suspend fun setCloudAutoBackup(value: Boolean) {
         edit { it[K.CLOUD_AUTO_BACKUP] = value }
         SettingsCache.cloudAutoBackup = value
+    }
+
+    suspend fun setCustomUserAgent(value: String) {
+        val trimmed = value.trim()
+        val enc = LocalSecrets.encrypt(trimmed)
+        SettingsCache.customUserAgent = trimmed
+        edit { it[K.CUSTOM_USER_AGENT_ENC] = enc }
     }
 
     suspend fun setMarkdownEnabled(value: Boolean) {

@@ -94,40 +94,6 @@ fun HiddenNotesScreen(onBack: () -> Unit, onOpen: (com.lucent.app.data.Note) -> 
 }
 
 @Composable
-fun HiddenTasksScreen(onBack: () -> Unit, onOpen: (com.lucent.app.data.Task) -> Unit) {
-    val context = LocalContext.current
-    val db = remember { AppDatabase.getInstance(context) }
-    val hidden by db.taskDao().getHidden().collectAsState(initial = emptyList())
-    val onGradient = LocalOnGradient.current
-    val onGradientMuted = LocalOnGradientMuted.current
-    val hazeState = LocalHazeState.current
-    var pendingReveal by remember { mutableStateOf<(() -> Unit)?>(null) }
-
-    HiddenScaffold(onBack = onBack, isEmpty = hidden.isEmpty(), hazeState = hazeState) {
-        items(hidden, key = { it.id }) { task ->
-            val items = remember(task.subtasks) { Checklist.parse(task.subtasks) }
-            HiddenRow(
-                title = task.title,
-                subtitle = task.notes.ifBlank {
-                    if (items.isEmpty()) "" else com.lucent.app.i18n.S.checklistDoneCount(items.count { it.done }, items.size)
-                },
-                savedAt = task.createdAt,
-                onOpen = { onOpen(task) },
-                onReveal = {
-                    pendingReveal = {
-                        AppScope.io.launch { db.taskDao().update(task.copy(hidden = false)) }
-                    }
-                },
-                onGradient = onGradient,
-                onGradientMuted = onGradientMuted
-            )
-        }
-    }
-
-    RevealConfirmDialog(pending = pendingReveal, onDismiss = { pendingReveal = null })
-}
-
-@Composable
 private fun RevealConfirmDialog(pending: (() -> Unit)?, onDismiss: () -> Unit) {
     if (pending == null) return
     AlertDialog(

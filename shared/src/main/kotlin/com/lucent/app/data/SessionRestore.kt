@@ -8,7 +8,6 @@ import org.json.JSONObject
 object SessionRestore {
 
     const val KIND_NOTE = "note"
-    const val KIND_TASK = "task"
 
     data class Snapshot(
         val kind: String,
@@ -72,7 +71,7 @@ object SessionRestore {
     fun parse(json: String): Snapshot? = try {
         val o = JSONObject(json)
         val kind = o.optString("kind")
-        if (kind != KIND_NOTE && kind != KIND_TASK) null
+        if (kind != KIND_NOTE) null
         else Snapshot(
             kind = kind,
             itemId = if (o.isNull("itemId")) null else o.optLong("itemId"),

@@ -15,17 +15,18 @@ import com.lucent.app.ui.rememberDynamicColorActive
 
 @Composable
 internal fun AppearanceSettingsPage(repo: SettingsRepository, onRoute: (SettingsRoute) -> Unit) {
-    val dynamicColorActive = rememberDynamicColorActive(repo)
-
     BackHeader(onBack = { onRoute(SettingsRoute.Root) })
 
     DynamicColorRow(repo)
 
-    if (!dynamicColorActive) {
-        NavCard(S.settingsThemeTitle, S.settingsThemeSub) { onRoute(SettingsRoute.Theme) }
-        Spacer(modifier = Modifier.height(12.dp))
-        NavCard(S.settingsBackgroundTitle, S.settingsBackgroundSub) { onRoute(SettingsRoute.Background) }
-        Spacer(modifier = Modifier.height(12.dp))
-    }
+    NavCard(S.fontTypographyTitle, S.fontTypographySub) { onRoute(SettingsRoute.Font) }
+    Spacer(modifier = Modifier.height(12.dp))
+
+    NavCard(S.settingsThemeTitle, S.settingsThemeSub) { onRoute(SettingsRoute.Theme) }
+    Spacer(modifier = Modifier.height(12.dp))
+
+    NavCard(S.settingsBackgroundTitle, S.settingsBackgroundSub) { onRoute(SettingsRoute.Background) }
+    Spacer(modifier = Modifier.height(12.dp))
+
     NavCard(S.settingsSplashTitle, S.settingsSplashSub) { onRoute(SettingsRoute.Splash) }
 }

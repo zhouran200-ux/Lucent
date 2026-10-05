@@ -124,7 +124,6 @@ object ReplyFiles {
     suspend fun saveToNewItem(
         context: Context,
         db: AppDatabase,
-        asTask: Boolean,
         title: String,
         body: String,
         fileName: String,
@@ -139,11 +138,7 @@ object ReplyFiles {
         }
         val storedId = if (json == "[]") null else Attachments.parse(json).firstOrNull()?.data
         return try {
-            if (asTask) {
-                db.taskDao().insert(Task(title = title, notes = body, attachments = json))
-            } else {
-                db.noteDao().insert(Note(title = title, body = body, attachments = json))
-            }
+            db.noteDao().insert(Note(title = title, body = body, attachments = json))
             true
         } catch (t: Throwable) {
             storedId?.let { AttachmentStore.delete(context, it) }

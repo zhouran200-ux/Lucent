@@ -46,6 +46,7 @@
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -86,51 +87,10 @@
             </intent-filter>
         </activity-alias>
 
-        <receiver
-            android:name=".reminders.ReminderReceiver"
-            android:enabled="true"
-            android:exported="false" />
-
-        <receiver
-            android:name=".reminders.NotificationActionReceiver"
-            android:enabled="true"
-            android:exported="false" />
-
-        <receiver
-            android:name=".reminders.BootReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
-            </intent-filter>
-        </receiver>
-
-        <service
-            android:name=".GenerationService"
-            android:exported="false"
-            android:process=":llm"
-            android:foregroundServiceType="dataSync" />
-
         <service
             android:name=".UpdateDownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
-
-        <provider
-            android:name=".local.LocalLlmInitProvider"
-            android:authorities="${applicationId}.localllminit"
-            android:exported="false" />
-
-        <provider
-            android:name="rikka.shizuku.ShizukuProvider"
-            android:authorities="${applicationId}.shizuku"
-            android:multiprocess="false"
-            android:enabled="true"
-            android:exported="true"
-            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -164,30 +124,6 @@
         </receiver>
 
         <receiver
-            android:name=".widget.NewTaskWidget"
-            android:label="@string/widget_label_new_task"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_new_task_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widget.AssistantWidget"
-            android:label="@string/widget_label_assistant"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_assistant_info" />
-        </receiver>
-
-        <receiver
             android:name=".widget.QuickActionsWidget"
             android:label="@string/widget_label_quick"
             android:exported="true">
@@ -197,30 +133,6 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_quick_actions_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widget.TaskSummaryWidget"
-            android:label="@string/widget_label_progress"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_task_summary_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widget.TodayTasksWidget"
-            android:label="@string/widget_label_today"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_today_tasks_info" />
         </receiver>
 
         <receiver
@@ -234,24 +146,6 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_pinned_note_info" />
         </receiver>
-
-        <service
-            android:name=".widget.TodayTasksWidgetService"
-            android:permission="android.permission.BIND_REMOTEVIEWS"
-            android:exported="false" />
-
-        <service
-            android:name=".harness.LucentAccessibilityService"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/lucent_accessibility" />
-        </service>
     </application>
 
 </manifest>

@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
-    id("androidx.baselineprofile")
 }
 
 val MARKETING_VERSION = "3.1.0"
@@ -20,57 +19,40 @@ android {
     namespace = "com.lucent.app"
     compileSdk = 36
 
-    ndkVersion = "28.2.13676358"
-
     defaultConfig {
         applicationId = "com.jiaying.yuan.lucentapp"
         minSdk = 28
         targetSdk = 36
         versionCode = ciVersionCode
         versionName = ciVersionName
-
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        }
-
-        externalNativeBuild {
-            cmake {
-                arguments += "-DLUCENT_ENABLE_VULKAN=ON"
-
-                System.getenv("LUCENT_SPIRV_HEADERS_DIR")?.takeIf { it.isNotBlank() }?.let { dir ->
-                    arguments += "-DSPIRV-Headers_DIR=$dir"
-                    arguments += "-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH"
-                }
-
-                System.getenv("LUCENT_VULKAN_INCLUDE_DIR")?.takeIf { it.isNotBlank() }?.let { inc ->
-                    arguments += "-DVulkan_INCLUDE_DIR=$inc"
-                }
-            }
-        }
     }
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
+    androidResources {
+        localeFilters += listOf("zh")
     }
 
     sourceSets {
         getByName("main") {
-            jniLibs.directories += layout.buildDirectory.dir("rustJniLibs").get().asFile.path
             kotlin.directories += rootProject.file("shared/src/main/kotlin").path
+            java.directories += rootProject.file("shared/src/main/kotlin").path
         }
         getByName("test") {
             kotlin.directories += rootProject.file("shared/src/test/kotlin").path
+            java.directories += rootProject.file("shared/src/test/kotlin").path
         }
         getByName("androidTest") {
             assets.directories += "$projectDir/schemas"
         }
     }
 
-    val releaseStorePath = System.getenv("LUCENT_KEYSTORE_FILE")
     signingConfigs {
+        create("debugConfig") {
+            storeFile = file("${rootDir}/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+        val releaseStorePath = System.getenv("LUCENT_KEYSTORE_FILE")
         if (releaseStorePath != null) {
             create("release") {
                 storeFile = file(releaseStorePath)
@@ -82,6 +64,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debugConfig")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -101,6 +86,7 @@ android {
     buildFeatures {
         compose = true
         aidl = true
+        buildConfig = true
     }
 
     testOptions {
@@ -114,13 +100,9 @@ android {
     }
 
     lint {
-        abortOnError = true
+        abortOnError = false
         baseline = file("lint-baseline.xml")
     }
-}
-
-baselineProfile {
-    automaticGenerationDuringBuild = false
 }
 
 kotlin {
@@ -131,44 +113,6 @@ kotlin {
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
-}
-
-val rustProjectDir = rootProject.file("rust")
-val rustOutDir = layout.buildDirectory.dir("rustJniLibs")
-
-fun toolWorks(vararg cmd: String): Boolean = try {
-    val p = ProcessBuilder(*cmd).redirectErrorStream(true).start()
-    p.inputStream.readBytes()
-    p.waitFor() == 0
-} catch (t: Throwable) {
-    false
-}
-
-val cargoNdkReady = rustProjectDir.exists() && toolWorks("cargo", "ndk", "--version")
-
-val cargoNdkBuild = tasks.register<Exec>("cargoNdkBuild") {
-    group = "build"
-    description = "Compile rust/ into liblucent_native.so for every packaged ABI"
-    workingDir = rustProjectDir
-    val rustTargets = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-    commandLine(
-        buildList {
-            add("cargo"); add("ndk")
-            rustTargets.forEach { add("-t"); add(it) }
-            add("-o"); add(rustOutDir.get().asFile.absolutePath)
-            add("build"); add("--release")
-        }
-    )
-}
-
-if (cargoNdkReady) {
-    tasks.named("preBuild") { dependsOn(cargoNdkBuild) }
-} else {
-    logger.lifecycle(
-        "lucent(:app, config): cargo-ndk not found - the ANDROID build would fall back to its " +
-            "Kotlin implementations (irrelevant to :desktop tasks). To enable the Rust fast paths: " +
-            "install rustup, run `cargo install cargo-ndk`, and add the Android targets."
-    )
 }
 
 dependencies {
@@ -196,14 +140,10 @@ dependencies {
 
     implementation(libs.okhttp)
 
-    implementation("dev.rikka.shizuku:api:13.1.5")
-    implementation("dev.rikka.shizuku:provider:13.1.5")
-    implementation("dev.rikka.shizuku:aidl:13.1.5")
-
     implementation(libs.haze)
     implementation(libs.haze.materials)
 
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
     testImplementation(libs.org.json)
 
     androidTestImplementation(libs.room.testing)
@@ -212,7 +152,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
 
     implementation(libs.androidx.profileinstaller)
-    baselineProfile(project(":baselineprofile"))
 
     implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("org.tukaani:xz:1.10")

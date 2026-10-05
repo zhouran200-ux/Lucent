@@ -1,8 +1,11 @@
 package com.lucent.app
 
-import androidx.activity.OnBackPressedDispatcher
-import androidx.activity.OnBackPressedDispatcherOwner
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,62 +17,51 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lucent.app.ui.AndroidRobotIcon
-import com.lucent.app.ui.AssistantScreen
-import com.lucent.app.ui.HomeMode
 import com.lucent.app.ui.LastScreen
 import com.lucent.app.ui.LocalHazeState
 import com.lucent.app.ui.LocalOnGradient
 import com.lucent.app.ui.LocalOnGradientMuted
 import com.lucent.app.ui.NotebooksScreen
-import com.lucent.app.ui.NotesScreen
 import com.lucent.app.ui.SettingsScreen
-import com.lucent.app.ui.TasksScreen
 import dev.chrisbanes.haze.rememberHazeState
 
 enum class HomeTab {
-    Home, Notebooks, Assistant, Settings;
+    Notebooks, Settings;
 
     val label: String
         get() = when (this) {
-            Home -> com.lucent.app.i18n.S.tabHome
             Notebooks -> com.lucent.app.i18n.S.screenNotebooks
-            Assistant -> com.lucent.app.i18n.S.tabAssistant
             Settings -> com.lucent.app.i18n.S.tabSettings
         }
 
-    fun screen(homeMode: HomeMode): Screen = when (this) {
-        Home -> homeMode.screen
+    fun screen(): Screen = when (this) {
         Notebooks -> Screen.Notebooks
-        Assistant -> Screen.Assistant
         Settings -> Screen.Settings
     }
 
     companion object {
         fun of(screen: Screen): HomeTab = when (screen) {
-            Screen.Tasks, Screen.Notes -> Home
             Screen.Notebooks -> Notebooks
-            Screen.Assistant -> Assistant
             Screen.Settings -> Settings
         }
     }
@@ -85,55 +77,67 @@ internal fun CapsuleNavItem(
     val context = LocalContext.current
     val onGradient = LocalOnGradient.current
     val onGradientMuted = LocalOnGradientMuted.current
-    val tint = if (selected) onGradient else onGradientMuted
+
+    val animTint by animateColorAsState(
+        targetValue = if (selected) onGradient else onGradientMuted,
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
+        label = "tabTint"
+    )
+    val animBgAlpha by animateFloatAsState(
+        targetValue = if (selected) 0.14f else 0f,
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
+        label = "tabBgAlpha"
+    )
+    val animScale by animateFloatAsState(
+        targetValue = if (selected) 1f else 0.94f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioLowBouncy),
+        label = "tabScale"
+    )
+
     Column(
         modifier = modifier
             .fillMaxHeight()
             .clip(RoundedCornerShape(percent = 50))
-            .then(if (selected) Modifier.background(onGradient.copy(alpha = 0.10f)) else Modifier)
+            .background(onGradient.copy(alpha = animBgAlpha))
             .clickable {
                 com.lucent.app.ui.Haptics.tick(context)
                 onClick()
+            }
+            .graphicsLayer {
+                scaleX = animScale
+                scaleY = animScale
             }
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(iconFor(tab), contentDescription = tab.label, tint = tint)
-        Text(tab.label, color = tint, fontSize = 11.sp, maxLines = 1)
+        Icon(iconFor(tab), contentDescription = tab.label, tint = animTint)
+        Text(tab.label, color = animTint, fontSize = 11.sp, maxLines = 1)
     }
 }
 
 fun iconFor(tab: HomeTab): ImageVector = when (tab) {
-    HomeTab.Home -> Icons.Default.Home
     HomeTab.Notebooks -> Icons.Default.Book
-    HomeTab.Assistant -> AndroidRobotIcon
     HomeTab.Settings -> Icons.Default.Settings
 }
-
-private fun inertOwnerOf(real: OnBackPressedDispatcherOwner?): OnBackPressedDispatcherOwner =
-    object : OnBackPressedDispatcherOwner {
-        override val lifecycle get() = real!!.lifecycle
-        override val onBackPressedDispatcher = OnBackPressedDispatcher()
-    }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun KeepAliveTabs(active: Screen, pagerState: PagerState, modifier: Modifier = Modifier) {
-    val realBackOwner = LocalOnBackPressedDispatcherOwner.current
-    val inertBackOwner = remember(realBackOwner) { inertOwnerOf(realBackOwner) }
     val sharedHaze = LocalHazeState.current
     val tabs = HomeTab.entries
     val activeTab = HomeTab.of(active)
 
     LaunchedEffect(activeTab) {
         val targetPage = tabs.indexOf(activeTab)
-        if (pagerState.currentPage != targetPage) pagerState.scrollToPage(targetPage)
+        if (pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage, animationSpec = tween(280, easing = FastOutSlowInEasing))
+        }
     }
 
     LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
         if (!pagerState.isScrollInProgress && pagerState.currentPage != tabs.indexOf(activeTab)) {
-            AppNavigation.requestScreen(tabs[pagerState.currentPage].screen(LastScreen.homeMode))
+            AppNavigation.requestScreen(tabs[pagerState.currentPage].screen())
         }
     }
 
@@ -149,58 +153,17 @@ internal fun KeepAliveTabs(active: Screen, pagerState: PagerState, modifier: Mod
             val dummyHaze = rememberHazeState()
             Box(modifier = Modifier.fillMaxSize()) {
                 CompositionLocalProvider(
-                    LocalHazeState provides (if (isActive) sharedHaze else dummyHaze),
-                    LocalOnBackPressedDispatcherOwner provides (if (isActive) realBackOwner!! else inertBackOwner)
+                    LocalHazeState provides (if (isActive) sharedHaze else dummyHaze)
                 ) {
                     when (tab) {
-                        HomeTab.Home -> HomePages(mode = HomeMode.of(active) ?: LastScreen.homeMode, active = isActive)
                         HomeTab.Notebooks -> NotebooksScreen(
-                            onBack = { AppNavigation.requestScreen(LastScreen.homeMode.screen) },
+                            onBack = { },
                             onOpenNote = { note -> AppNavigation.openNote(note.id, from = Screen.Notebooks) },
-                            onOpenTask = { task -> AppNavigation.openTask(task.id, from = Screen.Notebooks) },
                             showBack = false,
                             active = isActive
                         )
-                        HomeTab.Assistant -> AssistantScreen(active = isActive)
                         HomeTab.Settings -> SettingsScreen(active = isActive)
                     }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun HomePages(mode: HomeMode, active: Boolean) {
-    val realBackOwner = LocalOnBackPressedDispatcherOwner.current
-    val inertBackOwner = remember(realBackOwner) { inertOwnerOf(realBackOwner) }
-    val sharedHaze = LocalHazeState.current
-    val modes = HomeMode.entries
-    val pagerState = rememberPagerState(initialPage = modes.indexOf(mode), pageCount = { modes.size })
-
-    LaunchedEffect(mode) {
-        val target = modes.indexOf(mode)
-        if (pagerState.currentPage != target) pagerState.scrollToPage(target)
-    }
-
-    HorizontalPager(
-        state = pagerState,
-        beyondViewportPageCount = 1,
-        userScrollEnabled = false,
-        modifier = Modifier.fillMaxSize()
-    ) { page ->
-        val entry = modes[page]
-        val isActive = active && entry == mode
-        key(entry) {
-            val dummyHaze = rememberHazeState()
-            CompositionLocalProvider(
-                LocalHazeState provides (if (isActive) sharedHaze else dummyHaze),
-                LocalOnBackPressedDispatcherOwner provides (if (isActive) realBackOwner!! else inertBackOwner)
-            ) {
-                when (entry) {
-                    HomeMode.Tasks -> TasksScreen(active = isActive)
-                    HomeMode.Notes -> NotesScreen(active = isActive)
                 }
             }
         }

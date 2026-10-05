@@ -36,8 +36,6 @@ fun AutoUpdateDialog(repo: SettingsRepository, onOpenUrl: ((String) -> Unit)? = 
 
     val pickFolder = rememberBackupFolderPicker { folder ->
         scope.launch {
-            val current = repo.autoBackupOnce()
-            repo.setAutoBackup(current.copy(folderUri = folder))
             AutoUpdate.downloadFolderChosen()
             AutoUpdate.downloadOffered()
         }

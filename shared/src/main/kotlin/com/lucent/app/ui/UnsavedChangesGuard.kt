@@ -6,8 +6,7 @@ object UnsavedChangesGuard {
 
     private class Registration(
         val onSave: () -> Unit,
-        val onDiscard: () -> Unit,
-        val onAutoDraft: () -> Unit
+        val onDiscard: () -> Unit
     )
 
     private val registrations = mutableStateMapOf<String, Registration>()
@@ -20,7 +19,7 @@ object UnsavedChangesGuard {
         onDiscard: () -> Unit,
         onAutoDraft: () -> Unit = {}
     ) {
-        registrations[owner] = Registration(onSave, onDiscard, onAutoDraft)
+        registrations[owner] = Registration(onSave, onDiscard)
     }
 
     fun clear(owner: String) {
@@ -34,7 +33,7 @@ object UnsavedChangesGuard {
     }
 
     fun autoDraft() {
-        registrations.values.toList().forEach { it.onAutoDraft() }
+        // Draft feature removed
     }
 
     fun discard() {

@@ -12,9 +12,8 @@
 
     <LinearLayout
         android:id="@+id/cell_note"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="1"
         android:layout_margin="3dp"
         android:orientation="vertical"
         android:gravity="center"
@@ -30,66 +29,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="@string/widget_note"
-            android:textColor="@color/widget_text"
-            android:textSize="12sp"
-            android:autoSizeTextType="uniform"
-            android:autoSizeMinTextSize="8sp"
-            android:autoSizeMaxTextSize="12sp"
-            android:gravity="center"
-            android:ellipsize="end"
-            android:maxLines="1" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/cell_task"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:layout_margin="3dp"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:background="@drawable/widget_cell_bg"
-        android:padding="4dp">
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_widget_task"
-            android:contentDescription="New task" />
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/widget_task"
-            android:textColor="@color/widget_text"
-            android:textSize="12sp"
-            android:autoSizeTextType="uniform"
-            android:autoSizeMinTextSize="8sp"
-            android:autoSizeMaxTextSize="12sp"
-            android:gravity="center"
-            android:ellipsize="end"
-            android:maxLines="1" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/cell_ask"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:layout_margin="3dp"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:background="@drawable/widget_cell_bg"
-        android:padding="4dp">
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_widget_assistant"
-            android:contentDescription="Ask the assistant" />
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/widget_ask"
             android:textColor="@color/widget_text"
             android:textSize="12sp"
             android:autoSizeTextType="uniform"

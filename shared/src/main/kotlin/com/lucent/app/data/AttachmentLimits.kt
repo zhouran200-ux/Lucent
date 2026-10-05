@@ -25,7 +25,7 @@ object AttachmentLimits {
     fun sizeOfList(context: Context, list: List<Attachment>): Long =
         list.sumOf { sizeOf(context, it) }
 
-    fun totalStored(context: Context, notes: List<Note>, tasks: List<Task>): Long {
+    fun totalStored(context: Context, notes: List<Note>): Long {
         var total = AttachmentStore.totalBytes(context)
         val addLegacy: (String) -> Unit = { json ->
             Attachments.parse(json).forEach { att ->
@@ -35,7 +35,6 @@ object AttachmentLimits {
             }
         }
         notes.forEach { addLegacy(it.attachments) }
-        tasks.forEach { addLegacy(it.attachments) }
         return total
     }
 

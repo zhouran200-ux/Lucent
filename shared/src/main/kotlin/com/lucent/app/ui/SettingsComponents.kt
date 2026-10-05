@@ -17,21 +17,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentEnforcement
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,12 +52,12 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lucent.app.data.BackupManager
 import com.lucent.app.i18n.S
 
 internal fun specLabel(spec: String): String = when (spec) {
@@ -157,13 +167,7 @@ internal object SettingsTrail {
 
     fun parent(route: SettingsRoute): SettingsRoute? = when (route) {
         SettingsRoute.Root -> null
-        SettingsRoute.Theme, SettingsRoute.Background, SettingsRoute.Splash -> SettingsRoute.Appearance
-        SettingsRoute.Licences -> SettingsRoute.About
-        SettingsRoute.Personalization, SettingsRoute.CloudModel, SettingsRoute.LocalModel -> SettingsRoute.Assistant
-        SettingsRoute.Agent, SettingsRoute.Shizuku -> SettingsRoute.Advanced
-        SettingsRoute.Workspace, SettingsRoute.Capabilities, SettingsRoute.Permissions, SettingsRoute.Groups,
-        SettingsRoute.Execution, SettingsRoute.Github, SettingsRoute.Plugins, SettingsRoute.PluginSetup,
-        SettingsRoute.Mcp, SettingsRoute.Audit -> SettingsRoute.Agent
+        SettingsRoute.Theme, SettingsRoute.Background, SettingsRoute.Splash, SettingsRoute.Font -> SettingsRoute.Appearance
         else -> SettingsRoute.Root
     }
 
@@ -181,35 +185,14 @@ internal object SettingsTrail {
 
     fun title(route: SettingsRoute): String = when (route) {
         SettingsRoute.Root -> S.tabSettings
-        SettingsRoute.Agent -> S.settingsAgentTitle
-        SettingsRoute.Workspace -> S.agentWorkspaceTitle
-        SettingsRoute.Capabilities -> S.agentCapabilitiesTitle
-        SettingsRoute.Permissions -> S.agentPermissionsTitle
-        SettingsRoute.Groups -> S.agentGroupsTitle
-        SettingsRoute.Execution -> S.agentSandboxTitle
-        SettingsRoute.Github -> S.agentGithubTitle
-        SettingsRoute.Shizuku -> if (com.lucent.app.harness.HarnessRuntime.android) S.shizukuTitle else S.advancedElevateTitle
-        SettingsRoute.Plugins -> S.agentPluginsTitle
-        SettingsRoute.PluginSetup -> S.setupWizardTitle
-        SettingsRoute.Mcp -> S.agentMcpTitle
-        SettingsRoute.Audit -> S.agentAuditTitle
-        SettingsRoute.Language -> S.settingsLanguageTitle
-        SettingsRoute.Assistant -> S.settingsAssistantTitle
-        SettingsRoute.Personalization -> S.settingsPersonalizationTitle
-        SettingsRoute.CloudModel -> S.settingsCloudModelTitle
-        SettingsRoute.LocalModel -> S.settingsLocalModelTitle
         SettingsRoute.Appearance -> S.settingsAppearanceTitle
         SettingsRoute.Theme -> S.settingsThemeTitle
         SettingsRoute.Background -> S.settingsBackgroundTitle
         SettingsRoute.Splash -> S.settingsSplashTitle
         SettingsRoute.Editor -> S.settingsEditorTitle
-        SettingsRoute.Cloud -> S.cloudTitle
-        SettingsRoute.Security -> S.settingsSecurityTitle
-        SettingsRoute.Privacy -> S.settingsPrivacyTitle
-        SettingsRoute.Data -> S.settingsDataTitle
-        SettingsRoute.About -> S.settingsAboutTitle
-        SettingsRoute.Licences -> S.licencesTitle
-        SettingsRoute.Advanced -> S.settingsAdvancedTitle
+        SettingsRoute.Font -> S.fontTypographyTitle
+        SettingsRoute.Api -> S.apiSelectionTitle
+        SettingsRoute.CloudModel -> S.settingsCloudModelTitle
     }
 }
 
@@ -273,6 +256,7 @@ internal fun SettingsBreadcrumb(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MemoryTierRow(
     selected: Boolean,
@@ -284,165 +268,28 @@ internal fun MemoryTierRow(
     dimmed: Boolean = false
 ) {
     val fade = if (dimmed) 0.38f else 1f
-    Row(modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 4.dp)) {
-        RadioButton(selected = selected && !dimmed, onClick = onClick, modifier = Modifier.alpha(fade))
-        Column(modifier = Modifier.padding(start = 4.dp, top = 4.dp).alpha(fade)) {
-            Text(title, color = onGradient)
-            if (!detail.isNullOrBlank()) Text(detail, color = onGradientMuted, fontSize = 12.sp)
-        }
-    }
-}
-
-@Composable
-internal fun BackupModuleRow(
-    label: String,
-    module: BackupManager.BackupModule,
-    selected: Set<BackupManager.BackupModule>,
-    subLabel: String? = null,
-    onChooseItems: (() -> Unit)? = null,
-    onChange: (Set<BackupManager.BackupModule>) -> Unit
-) {
-    val checked = module in selected
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-    ) {
+    CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .weight(1f)
-                .clickable { onChange(if (checked) selected - module else selected + module) }
+                .fillMaxWidth()
+                .clickable { onClick() }
+                .padding(vertical = 1.dp)
         ) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = null
+            RadioButton(
+                selected = selected && !dimmed,
+                onClick = onClick,
+                modifier = Modifier.size(24.dp).alpha(fade)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                Text(label, fontSize = 14.sp)
-                if (subLabel != null) Text(subLabel, fontSize = 11.sp)
+            Column(modifier = Modifier.padding(start = 6.dp).alpha(fade)) {
+                Text(title, color = onGradient, fontSize = 13.sp)
+                if (!detail.isNullOrBlank()) Text(detail, color = onGradientMuted, fontSize = 10.sp)
             }
-        }
-        if (onChooseItems != null && checked) {
-            TextButton(onClick = onChooseItems) { Text(S.backupChooseItems, fontSize = 13.sp) }
         }
     }
 }
 
-internal enum class ExportItemKind { NOTES, TASKS, CHATS, API }
-
-@Composable
-internal fun ExportItemPickerDialog(
-    title: String,
-    items: List<Pair<Long, String>>,
-    selected: Set<Long>,
-    onDone: (Set<Long>) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var draft by remember(items) { mutableStateOf(selected) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                Row {
-                    TextButton(onClick = { draft = items.map { it.first }.toSet() }) {
-                        Text(S.selectAll, fontSize = 13.sp)
-                    }
-                    TextButton(onClick = { draft = emptySet() }) {
-                        Text(S.clearAllSelection, fontSize = 13.sp)
-                    }
-                }
-                Text(S.backupNOfM(draft.size, items.size), fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                if (items.isEmpty()) {
-                    Text(S.backupNothingToPick, fontSize = 13.sp)
-                } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                        items(items, key = { it.first }) { (id, label) ->
-                            val checked = id in draft
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { draft = if (checked) draft - id else draft + id }
-                                    .padding(vertical = 2.dp)
-                            ) {
-                                Checkbox(checked = checked, onCheckedChange = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(label, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { onDone(draft) }) { Text(S.actionDone) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(S.actionCancel) } }
-    )
-}
-
-@Composable
-internal fun ApiImportLimitDialog(
-    incoming: List<String>,
-    canAdd: Int,
-    max: Int,
-    onDone: (Set<String>) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var draft by remember(incoming, canAdd) {
-        mutableStateOf(incoming.take(canAdd.coerceAtLeast(0)).toSet())
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(S.backupPickApiTitle) },
-        text = {
-            Column {
-                if (canAdd <= 0) {
-                    Text(S.backupImportApiFull(max), fontSize = 13.sp)
-                } else {
-                    Text(S.backupImportApiLimit(canAdd, max), fontSize = 13.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(S.backupNOfM(draft.size, incoming.size), fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                        items(incoming, key = { it }) { name ->
-                            val checked = name in draft
-                            val blocked = !checked && draft.size >= canAdd
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(enabled = checked || !blocked) {
-                                        draft = if (checked) draft - name else draft + name
-                                    }
-                                    .padding(vertical = 2.dp)
-                            ) {
-                                Checkbox(checked = checked, enabled = checked || !blocked, onCheckedChange = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    name.ifBlank { S.backupModApi },
-                                    fontSize = 14.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onDone(if (canAdd <= 0) emptySet() else draft) }) {
-                Text(if (canAdd <= 0) S.actionDone else S.actionRestore)
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(S.actionCancel) } }
-    )
-}
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ApiModelPickerDialog(
     names: List<String>,
@@ -450,64 +297,193 @@ internal fun ApiModelPickerDialog(
     onDone: (Set<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var draft by remember(names) { mutableStateOf(selected) }
-    AlertDialog(
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(S.apiModelsTitle) },
-        text = {
-            Column {
-                Row {
-                    TextButton(onClick = { draft = names.toSet() }) {
-                        Text(S.selectAll, fontSize = 13.sp)
-                    }
-                    TextButton(onClick = { draft = emptySet() }) {
-                        Text(S.clearAllSelection, fontSize = 13.sp)
-                    }
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = S.apiModelsTitle,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "共 ${names.size} 个",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
-                Text(S.apiModelsCount(draft.size, names.size), fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                if (names.isEmpty()) {
-                    Text(S.apiModelsEmpty, fontSize = 13.sp)
-                } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = S.actionCancel,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "已勾选 ${draft.size} 个模型",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { draft = draft + names }
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = S.selectAll,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { draft = emptySet() }
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = S.clearAllSelection,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (names.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = S.apiModelsEmpty,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp, max = 340.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         items(names, key = { it }) { name ->
                             val checked = name in draft
+                            val itemBg = if (checked) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            }
+                            val itemBorder = if (checked) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            } else {
+                                Color.Transparent
+                            }
+
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { draft = if (checked) draft - name else draft + name }
-                                    .padding(vertical = 2.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(itemBg)
+                                    .then(
+                                        if (checked) Modifier.border(1.dp, itemBorder, RoundedCornerShape(8.dp))
+                                        else Modifier
+                                    )
+                                    .clickable {
+                                        draft = if (checked) draft - name else draft + name
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 3.dp)
                             ) {
                                 Text(
-                                    name,
-                                    fontSize = 14.sp,
+                                    text = name,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (checked) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Checkbox(checked = checked, onCheckedChange = null)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Checkbox(
+                                    checked = checked,
+                                    onCheckedChange = null,
+                                    modifier = Modifier.size(20.dp),
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = MaterialTheme.colorScheme.primary
+                                    )
+                                )
                             }
                         }
                     }
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = { onDone(draft) }) { Text(S.actionDone) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(S.actionCancel) } }
-    )
-}
 
-@Composable
-internal fun BackupContentLine(label: String, count: Int, details: List<String>) {
-    if (count <= 0) return
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-        Text("$count", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(52.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label, fontSize = 13.sp)
-            if (details.isNotEmpty()) {
-                Text(details.joinToString(", "), fontSize = 12.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = { onDone(draft) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp),
+                shape = RoundedCornerShape(percent = 50),
+                contentPadding = PaddingValues(vertical = 0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(
+                    text = "确定选择 (${draft.size})",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

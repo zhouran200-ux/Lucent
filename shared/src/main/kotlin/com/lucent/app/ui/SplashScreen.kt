@@ -46,7 +46,7 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 object AppReady {
-    var databaseReady by mutableStateOf(false)
+    var databaseReady by mutableStateOf(true)
 }
 
 @Composable
@@ -69,6 +69,8 @@ fun LucentSplash(
         }
     }
 
+    if (done) return
+
     val elapsed = remember { mutableFloatStateOf(0f) }
     if (!inspection) {
         LaunchedEffect(Unit) {
@@ -79,12 +81,13 @@ fun LucentSplash(
                 now = withInfiniteAnimationFrameNanos { it }
                 elapsed.floatValue = (now - start) / 1_000_000f
             }
+            finish()
         }
     }
 
     LaunchedEffect(Unit) {
         if (inspection) return@LaunchedEffect
-        delay(totalMs.toLong())
+        delay(totalMs.toLong().coerceAtMost(600L))
         finish()
     }
 
@@ -94,7 +97,7 @@ fun LucentSplash(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                detectTapGestures(onTap = { })
+                detectTapGestures(onTap = { finish() })
             }
     ) {
         SplashBackground(

@@ -1,560 +1,245 @@
 package com.lucent.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lucent.app.AppNavigation
-import com.lucent.app.AppScope
 import com.lucent.app.data.AppDatabase
-import com.lucent.app.data.Checklist
 import com.lucent.app.data.Note
 import com.lucent.app.data.Notebook
-import com.lucent.app.data.NotebookItem
-import com.lucent.app.data.Task
-import com.lucent.app.tools.TaskActions
-import dev.chrisbanes.haze.hazeSource
-import kotlinx.coroutines.launch
+
+enum class NotebookDetailTab {
+    CHAT,
+    SOURCES
+}
 
 @Composable
 fun NotebookDetailScreen(
     notebookId: Long,
     onBack: () -> Unit,
-    onOpenNote: (Note) -> Unit,
-    onOpenTask: (Task) -> Unit
+    onOpenNote: (Note) -> Unit = {}
 ) {
-    BackHandler { onBack() }
     val context = LocalContext.current
     val db = remember { AppDatabase.getInstance(context) }
-    val scope = rememberCoroutineScope()
+
+    var selectedTab by remember { mutableStateOf(NotebookDetailTab.CHAT) }
+    var notebook by remember { mutableStateOf<Notebook?>(null) }
+    var sourceNotes by remember { mutableStateOf<List<Note>>(emptyList()) }
+    var readerNote by remember { mutableStateOf<Note?>(null) }
+    var reloadCount by remember { mutableIntStateOf(0) }
+
     val onGradient = LocalOnGradient.current
     val onGradientMuted = LocalOnGradientMuted.current
 
-    var notebook by remember { mutableStateOf<Notebook?>(null) }
-    LaunchedEffect(notebookId) {
+    // Intercept system back button if reader overlay is active
+    BackHandler {
+        if (readerNote != null) {
+            readerNote = null
+        } else {
+            onBack()
+        }
+    }
+
+    // Load Notebook metadata and linked source notes
+    LaunchedEffect(notebookId, reloadCount) {
         notebook = db.notebookDao().getByIdOnce(notebookId)
-    }
-    val items by db.notebookDao().getItems(notebookId).collectAsState(initial = emptyList())
-
-    val noteMembers = remember(items) { items.filter { it.itemKind == NotebookItem.KIND_NOTE } }
-    val taskMembers = remember(items) { items.filter { it.itemKind == NotebookItem.KIND_TASK } }
-    var notesById by remember { mutableStateOf(emptyMap<Long, Note>()) }
-    var tasksById by remember { mutableStateOf(emptyMap<Long, Task>()) }
-    LaunchedEffect(noteMembers, taskMembers) {
-        val notes = if (noteMembers.isEmpty()) emptyMap()
-        else db.noteDao().getByIds(noteMembers.map { it.itemId }.toSet().toList()).associateBy { it.id }
-        val tasks = if (taskMembers.isEmpty()) emptyMap()
-        else db.taskDao().getByIds(taskMembers.map { it.itemId }.toSet().toList()).associateBy { it.id }
-        notesById = notes
-        tasksById = tasks
-        val ghosts = noteMembers.filter { it.itemId !in notes } + taskMembers.filter { it.itemId !in tasks }
-        if (ghosts.isNotEmpty()) ghosts.forEach { db.notebookDao().deleteItemById(it.id) }
+        val items = db.notebookDao().getItemsOnce(notebookId)
+        val itemIds = items.map { it.itemId }
+        sourceNotes = if (itemIds.isNotEmpty()) {
+            db.noteDao().getByIds(itemIds)
+        } else {
+            emptyList()
+        }
     }
 
-    var renaming by remember { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
-    var addMenuOpen by remember { mutableStateOf(false) }
-    var composingNote by remember { mutableStateOf(false) }
-    var composingTask by remember { mutableStateOf(false) }
-    var noteToTrash by remember { mutableStateOf<Note?>(null) }
-    var taskToTrash by remember { mutableStateOf<Task?>(null) }
-    val title = notebook?.title?.ifBlank { com.lucent.app.i18n.S.notebookEmptyTitle } ?: ""
+    val title = notebook?.title?.ifBlank { "未命名笔记本" } ?: "笔记本"
 
-    if (deleting) {
-        AlertDialog(
-            onDismissRequest = { deleting = false },
-            title = { Text(com.lucent.app.i18n.S.notebookDeleteTitle) },
-            text = { Text(com.lucent.app.i18n.S.notebookTrashBody(title)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    deleting = false
-                    AppScope.io.launch {
-                        db.notebookDao().update(
-                            (notebook ?: return@launch).copy(trashedAt = System.currentTimeMillis())
-                        )
-                        LucentToast.show(context, com.lucent.app.i18n.S.notebookDeletedToast)
-                    }
-                    onBack()
-                }) { Text(com.lucent.app.i18n.S.actionDelete) }
-            },
-            dismissButton = {
-                TextButton(onClick = { deleting = false }) { Text(com.lucent.app.i18n.S.actionCancel) }
-            }
-        )
-    }
-
-    if (composingNote) {
-        NotebookNewNoteDialog(
-            notebookId = notebookId,
-            onDismiss = { composingNote = false },
-            onCreated = { composingNote = false }
-        )
-    }
-
-    if (composingTask) {
-        NotebookNewTaskDialog(
-            notebookId = notebookId,
-            onDismiss = { composingTask = false },
-            onCreated = { composingTask = false }
-        )
-    }
-
-    noteToTrash?.let { note ->
-        AlertDialog(
-            onDismissRequest = { noteToTrash = null },
-            title = { Text(com.lucent.app.i18n.S.moveToTrashTitle) },
-            text = {
-                Text(
-                    com.lucent.app.i18n.S.moveNoteTrashBody(
-                        note.title.ifBlank { com.lucent.app.i18n.S.untitledNote },
-                        com.lucent.app.data.TrashCleanup.RETENTION_DAYS
-                    )
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color(0xFF0C0C14).copy(alpha = 0.94f) // Dark glass matching Lucent App theme
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
+                // Top Navigation Header with Glass Segmented Control
+                NotebookDetailHeader(
+                    selectedTab = selectedTab,
+                    sourceCount = sourceNotes.size,
+                    onSelectTab = { selectedTab = it },
+                    onBack = onBack
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val target = note
-                    noteToTrash = null
-                    AppScope.io.launch {
-                        db.noteDao().update(target.copy(trashedAt = System.currentTimeMillis()))
-                        items.firstOrNull {
-                            it.itemKind == NotebookItem.KIND_NOTE && it.itemId == target.id
-                        }?.let { db.notebookDao().deleteItemById(it.id) }
-                    }
-                }) { Text(com.lucent.app.i18n.S.moveToTrash) }
-            },
-            dismissButton = { TextButton(onClick = { noteToTrash = null }) { Text(com.lucent.app.i18n.S.actionCancel) } }
-        )
-    }
 
-    taskToTrash?.let { task ->
-        AlertDialog(
-            onDismissRequest = { taskToTrash = null },
-            title = { Text(com.lucent.app.i18n.S.moveToTrashTitle) },
-            text = {
-                Text(
-                    com.lucent.app.i18n.S.moveTaskTrashBody(
-                        task.title.ifBlank { com.lucent.app.i18n.S.untitledTask },
-                        com.lucent.app.data.TrashCleanup.RETENTION_DAYS
-                    )
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val target = task
-                    taskToTrash = null
-                    AppScope.io.launch {
-                        TaskActions.trash(context, db, target)
-                        items.firstOrNull {
-                            it.itemKind == NotebookItem.KIND_TASK && it.itemId == target.id
-                        }?.let { db.notebookDao().deleteItemById(it.id) }
-                    }
-                }) { Text(com.lucent.app.i18n.S.moveToTrash) }
-            },
-            dismissButton = { TextButton(onClick = { taskToTrash = null }) { Text(com.lucent.app.i18n.S.actionCancel) } }
-        )
-    }
-
-    if (renaming) {
-        NotebookEditorDialog(
-            title = com.lucent.app.i18n.S.notebookRename,
-            confirmLabel = com.lucent.app.i18n.S.notebookRenameAction,
-            initialName = notebook?.title ?: "",
-            initialColor = NotebookColor.fromKey(notebook?.color),
-            showColorPicker = false,
-            onConfirm = { name, _ ->
-                val row = notebook
-                if (row != null) {
-                    scope.launch {
-                        db.notebookDao().update(
-                            row.copy(title = name.trim(), updatedAt = System.currentTimeMillis())
-                        )
-                        notebook = row.copy(title = name.trim(), updatedAt = System.currentTimeMillis())
-                        LucentToast.show(context, com.lucent.app.i18n.S.notebookRenamedToast)
+                // Tab Content Switcher
+                Crossfade(
+                    targetState = selectedTab,
+                    animationSpec = tween(durationMillis = 200),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) { tab ->
+                    when (tab) {
+                        NotebookDetailTab.CHAT -> {
+                            NotebookChatTab(
+                                notebookId = notebookId,
+                                notebookTitle = title,
+                                sourceNotes = sourceNotes,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        NotebookDetailTab.SOURCES -> {
+                            NotebookSourcesTab(
+                                notebookId = notebookId,
+                                sourceNotes = sourceNotes,
+                                onOpenNote = onOpenNote,
+                                onOpenReader = { readerNote = it },
+                                onReload = { reloadCount++ },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
-            },
-            onDismiss = { renaming = false }
-        )
-    }
-
-    val query = searchText.trim()
-    val rows = remember(items, notesById, tasksById, query) {
-        items.mapNotNull { member ->
-            when (member.itemKind) {
-                NotebookItem.KIND_NOTE -> notesById[member.itemId]?.let { NotebookRowData.NoteRow(member, it) }
-                NotebookItem.KIND_TASK -> tasksById[member.itemId]?.let { NotebookRowData.TaskRow(member, it) }
-                else -> null
             }
-        }.filter { row ->
-            query.isEmpty() || row.matches(query)
-        }
-    }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        BackHeader(onBack = onBack)
-
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            NotebookCover(
-                colorKey = notebook?.color.orEmpty(),
-                label = title,
-                modifier = Modifier.width(30.dp).height(42.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = onGradient, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    com.lucent.app.i18n.S.notebookItemsCount(items.size),
-                    color = onGradientMuted,
-                    fontSize = 12.sp
-                )
-            }
-            IconButton(onClick = { renaming = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = com.lucent.app.i18n.S.actionRename, tint = onGradientMuted)
-            }
-            Box {
-                NewItemButton(
-                    contentDescription = com.lucent.app.i18n.S.notebookAdd,
-                    onClick = { addMenuOpen = true }
-                )
-                DropdownMenu(expanded = addMenuOpen, onDismissRequest = { addMenuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text(com.lucent.app.i18n.S.newNote) },
-                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
-                        onClick = { addMenuOpen = false; composingNote = true }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(com.lucent.app.i18n.S.newTask) },
-                        leadingIcon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
-                        onClick = { addMenuOpen = false; composingTask = true }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(com.lucent.app.i18n.S.actionDelete) },
-                        onClick = { addMenuOpen = false; deleting = true }
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = searchText,
-            onValueChange = { searchText = it },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = com.lucent.app.i18n.S.a11ySearchNotebooks) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (rows.isEmpty()) {
-            EmptyState(
-                isFiltered = query.isNotEmpty(),
-                emptyMessage = com.lucent.app.i18n.S.notebookDetailEmpty,
-                noMatchMessage = com.lucent.app.i18n.S.noNotesMatchSearch
-            )
-            return@Column
-        }
-
-        LazyColumn(
-            state = rememberRestoredListState("NotebookDetailScreen#1"),
-            modifier = Modifier.hazeSource(state = LocalHazeState.current),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = LocalBottomBarInset.current)
-        ) {
-            items(rows, key = { it.key }) { row ->
-                NotebookMemberRow(
-                    row = row,
-                    onOpen = {
-                        when (row) {
-                            is NotebookRowData.NoteRow -> onOpenNote(row.note)
-                            is NotebookRowData.TaskRow -> onOpenTask(row.task)
-                        }
-                    },
-                    onEdit = {
-                        when (row) {
-                            is NotebookRowData.NoteRow -> AppNavigation.editNote(row.note.id)
-                            is NotebookRowData.TaskRow -> AppNavigation.editTask(row.task.id)
-                        }
-                    },
-                    onRemove = {
-                        scope.launch {
-                            db.notebookDao().deleteItemById(row.member.id)
-                            LucentToast.show(context, com.lucent.app.i18n.S.notebookRemovedToast)
-                        }
-                    },
-                    onDelete = {
-                        when (row) {
-                            is NotebookRowData.NoteRow -> noteToTrash = row.note
-                            is NotebookRowData.TaskRow -> taskToTrash = row.task
-                        }
-                    }
+            // Document Reader Overlay (Dark glass style)
+            readerNote?.let { note ->
+                SourceReaderOverlay(
+                    note = note,
+                    onDismiss = { readerNote = null },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
-    }
-}
-
-private sealed interface NotebookRowData {
-    val member: NotebookItem
-    val key: String
-
-    fun matches(query: String): Boolean
-
-    data class NoteRow(override val member: NotebookItem, val note: Note) : NotebookRowData {
-        override val key: String get() = "note_${note.id}"
-        override fun matches(query: String): Boolean =
-            note.title.contains(query, ignoreCase = true) || note.body.contains(query, ignoreCase = true)
-    }
-
-    data class TaskRow(override val member: NotebookItem, val task: Task) : NotebookRowData {
-        override val key: String get() = "task_${task.id}"
-        override fun matches(query: String): Boolean =
-            task.title.contains(query, ignoreCase = true) || task.notes.contains(query, ignoreCase = true)
     }
 }
 
 @Composable
-private fun NotebookMemberRow(
-    row: NotebookRowData,
-    onOpen: () -> Unit,
-    onEdit: () -> Unit,
-    onRemove: () -> Unit,
-    onDelete: () -> Unit
+private fun NotebookDetailHeader(
+    selectedTab: NotebookDetailTab,
+    sourceCount: Int,
+    onSelectTab: (NotebookDetailTab) -> Unit,
+    onBack: () -> Unit
 ) {
-    val context = LocalContext.current
     val onGradient = LocalOnGradient.current
     val onGradientMuted = LocalOnGradientMuted.current
-    var menuOpen by remember { mutableStateOf(false) }
-
-    val title: String
-    val preview: String
-    val kindLabel: String
-    val colorKey: String
-    val timestamp: Long
-    when (row) {
-        is NotebookRowData.NoteRow -> {
-            title = row.note.title.ifBlank { com.lucent.app.i18n.S.untitledNote }
-            preview = notebookPreview(row.note)
-            kindLabel = com.lucent.app.i18n.S.notebookItemNote
-            colorKey = row.note.color
-            timestamp = row.note.updatedAt
-        }
-        is NotebookRowData.TaskRow -> {
-            title = row.task.title.ifBlank { com.lucent.app.i18n.S.untitledTask }
-            preview = taskPreview(row.task)
-            kindLabel = com.lucent.app.i18n.S.notebookItemTask
-            colorKey = ""
-            timestamp = row.task.createdAt
-        }
-    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .frostedGlass()
-            .clickable {
-                Haptics.tick(context)
-                onOpen()
-            }
-            .padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                NoteColorDot(colorKey)
-                if (colorKey.isNotEmpty()) Spacer(modifier = Modifier.width(6.dp))
-                Text(kindLabel, color = onGradientMuted, fontSize = 11.sp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    title,
-                    color = onGradient,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-            }
-            if (preview.isNotBlank()) {
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    preview,
-                    color = onGradientMuted,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(formatTimestamp(timestamp), color = onGradientMuted, fontSize = 11.sp)
+        // Back Button
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier.padding(end = 8.dp)
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "返回",
+                tint = onGradient
+            )
         }
-        Box {
-            IconButton(onClick = { menuOpen = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = com.lucent.app.i18n.S.a11yMoreOptions, tint = onGradientMuted)
-            }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = {
+
+        // Center Segmented Control Pill Bar (Translucent dark glass style)
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White.copy(alpha = 0.08f),
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 40.dp)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Tab 1: 对话
+                val isChat = selectedTab == NotebookDetailTab.CHAT
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isChat) Color(0xFF0284C7).copy(alpha = 0.35f) else Color.Transparent,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { onSelectTab(NotebookDetailTab.CHAT) }
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
                         Text(
-                            when (row) {
-                                is NotebookRowData.NoteRow -> com.lucent.app.i18n.S.editNote
-                                is NotebookRowData.TaskRow -> com.lucent.app.i18n.S.editTask
-                            }
+                            text = "对话",
+                            color = if (isChat) Color(0xFF38BDF8) else onGradientMuted,
+                            fontSize = 15.sp,
+                            fontWeight = if (isChat) FontWeight.Bold else FontWeight.Medium
                         )
-                    },
-                    onClick = { menuOpen = false; onEdit() }
-                )
-                DropdownMenuItem(
-                    text = { Text(com.lucent.app.i18n.S.notebookRemoveItem) },
-                    onClick = { menuOpen = false; onRemove() }
-                )
-                DropdownMenuItem(
-                    text = { Text(com.lucent.app.i18n.S.actionDelete) },
-                    onClick = { menuOpen = false; onDelete() }
-                )
+                    }
+                }
+
+                Spacer(modifier = Modifier.padding(horizontal = 2.dp))
+
+                // Tab 2: 来源 (N)
+                val isSources = selectedTab == NotebookDetailTab.SOURCES
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isSources) Color(0xFF0284C7).copy(alpha = 0.35f) else Color.Transparent,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { onSelectTab(NotebookDetailTab.SOURCES) }
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "来源 ($sourceCount)",
+                            color = if (isSources) Color(0xFF38BDF8) else onGradientMuted,
+                            fontSize = 15.sp,
+                            fontWeight = if (isSources) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
     }
-}
-
-@Composable
-private fun NotebookNewNoteDialog(notebookId: Long, onDismiss: () -> Unit, onCreated: () -> Unit) {
-    val context = LocalContext.current
-    val db = remember { AppDatabase.getInstance(context) }
-    var title by remember { mutableStateOf("") }
-    var body by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(com.lucent.app.i18n.S.newNote) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text(com.lucent.app.i18n.S.confirmEditTitleLabel) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = body,
-                    onValueChange = { body = it },
-                    label = { Text(com.lucent.app.i18n.S.confirmEditBodyLabel) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val noteTitle = title.trim()
-                val noteBody = body
-                onCreated()
-                AppScope.io.launch {
-                    val id = db.noteDao().insert(Note(title = noteTitle, body = noteBody))
-                    db.notebookDao().insertItem(
-                        NotebookItem(notebookId = notebookId, itemKind = NotebookItem.KIND_NOTE, itemId = id)
-                    )
-                    db.notebookDao().getByIdOnce(notebookId)?.let { row ->
-                        db.notebookDao().update(row.copy(updatedAt = System.currentTimeMillis()))
-                    }
-                    LucentToast.show(context, com.lucent.app.i18n.S.notebookAddedToast)
-                }
-            }) { Text(com.lucent.app.i18n.S.notebookCreate) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(com.lucent.app.i18n.S.actionCancel) } }
-    )
-}
-
-@Composable
-private fun NotebookNewTaskDialog(notebookId: Long, onDismiss: () -> Unit, onCreated: () -> Unit) {
-    val context = LocalContext.current
-    val db = remember { AppDatabase.getInstance(context) }
-    var title by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(com.lucent.app.i18n.S.newTask) },
-        text = {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text(com.lucent.app.i18n.S.confirmEditTitleLabel) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val taskTitle = title.trim()
-                onCreated()
-                AppScope.io.launch {
-                    val id = db.taskDao().insert(Task(title = taskTitle))
-                    db.notebookDao().insertItem(
-                        NotebookItem(notebookId = notebookId, itemKind = NotebookItem.KIND_TASK, itemId = id)
-                    )
-                    db.notebookDao().update(
-                        (db.notebookDao().getByIdOnce(notebookId) ?: return@launch)
-                            .copy(updatedAt = System.currentTimeMillis())
-                    )
-                    LucentToast.show(context, com.lucent.app.i18n.S.notebookAddedToast)
-                }
-            }) { Text(com.lucent.app.i18n.S.notebookCreate) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(com.lucent.app.i18n.S.actionCancel) } }
-    )
-}
-
-private fun notebookPreview(note: Note): String =
-    if (note.isChecklist) {
-        val items = Checklist.parse(note.checklist)
-        if (items.isEmpty()) "" else com.lucent.app.i18n.S.checklistDoneCount(items.count { it.done }, items.size)
-    } else note.body
-
-private fun taskPreview(task: Task): String {
-    val notes = task.notes.trim()
-    if (notes.isNotEmpty()) return notes
-    val due = task.dueAt
-    return if (due != null) com.lucent.app.i18n.S.exportDocDue(formatTimestamp(due)) else ""
 }

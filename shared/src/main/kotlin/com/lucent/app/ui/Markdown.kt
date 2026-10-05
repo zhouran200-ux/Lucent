@@ -31,7 +31,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private sealed interface MdBlock {
+internal sealed interface MdBlock {
     data class Heading(val level: Int, val text: String) : MdBlock
     data class Paragraph(val text: String) : MdBlock
     data class Bullet(val text: String) : MdBlock
@@ -49,7 +49,7 @@ private val QUOTE = Regex("""^\s*>\s?(.*)$""")
 private val RULE = Regex("""^\s*(-{3,}|\*{3,}|_{3,})\s*$""")
 private const val FENCE = "```"
 
-private fun parseBlocks(text: String): List<MdBlock> {
+internal fun parseBlocks(text: String): List<MdBlock> {
     val blocks = mutableListOf<MdBlock>()
     val lines = text.lines()
     val paragraph = StringBuilder()
@@ -133,6 +133,92 @@ private fun parseBlocks(text: String): List<MdBlock> {
     }
     flushParagraph()
     return blocks
+}
+
+/**
+ * 块级增量 Markdown 解析器 (IncrementalMarkdownParser)
+ *
+ * 核心性能优势：
+ * 在流式输出过程中，前序已闭合的段落、代码块、列表项（由双换行或闭合标签分隔）保持不可变。
+ * 避免每次流式更新对全文重复进行 O(N^2) 耗时的正则匹配与 AST 重解析，
+ * 仅对尾部未闭合的活动块（Active Block）进行轻量级解析，大幅缓解 CPU 压力与 GC 抖动。
+ */
+internal class IncrementalMarkdownParser {
+    private var lastFullText: String = ""
+    private var cachedClosedPrefixLength: Int = 0
+    private var cachedClosedBlocks: List<MdBlock> = emptyList()
+
+    fun parse(text: String): List<MdBlock> {
+        if (text.isEmpty()) {
+            reset()
+            return emptyList()
+        }
+
+        // 非追加式变更（如切换消息或重新编辑），重置缓存全量解析
+        if (lastFullText.isEmpty() || !text.startsWith(lastFullText)) {
+            reset()
+            val split = findSafeClosedSplit(text)
+            if (split > 0) {
+                cachedClosedPrefixLength = split
+                cachedClosedBlocks = parseBlocks(text.substring(0, split))
+                lastFullText = text
+                val tail = text.substring(split)
+                val tailBlocks = if (tail.isNotBlank()) parseBlocks(tail) else emptyList()
+                return cachedClosedBlocks + tailBlocks
+            } else {
+                lastFullText = text
+                return parseBlocks(text)
+            }
+        }
+
+        // 流式增量追加模式：仅解析尾部活跃块
+        lastFullText = text
+        val newSplit = findSafeClosedSplit(text)
+        if (newSplit > cachedClosedPrefixLength) {
+            cachedClosedPrefixLength = newSplit
+            cachedClosedBlocks = parseBlocks(text.substring(0, newSplit))
+        }
+
+        val tail = if (cachedClosedPrefixLength < text.length) {
+            text.substring(cachedClosedPrefixLength)
+        } else ""
+
+        val tailBlocks = if (tail.isNotBlank()) parseBlocks(tail) else emptyList()
+        return if (cachedClosedBlocks.isEmpty()) tailBlocks else cachedClosedBlocks + tailBlocks
+    }
+
+    private fun reset() {
+        lastFullText = ""
+        cachedClosedPrefixLength = 0
+        cachedClosedBlocks = emptyList()
+    }
+
+    companion object {
+        fun findSafeClosedSplit(text: String): Int {
+            var inCodeFence = false
+            var lastSafeSplit = -1
+
+            val lines = text.lines()
+            var currentOffset = 0
+            for (i in lines.indices) {
+                val line = lines[i]
+                val lineLenWithNewline = line.length + if (i < lines.size - 1) 1 else 0
+
+                if (line.trimStart().startsWith("```")) {
+                    inCodeFence = !inCodeFence
+                    if (!inCodeFence) {
+                        lastSafeSplit = currentOffset + lineLenWithNewline
+                    }
+                } else if (!inCodeFence && line.isBlank() && i > 0 && lines[i - 1].isNotBlank()) {
+                    lastSafeSplit = currentOffset + lineLenWithNewline
+                }
+
+                currentOffset += lineLenWithNewline
+            }
+
+            return lastSafeSplit.coerceAtLeast(0)
+        }
+    }
 }
 
 private val INLINE = Regex(
@@ -263,7 +349,8 @@ fun MarkdownText(
 ) {
     val onGradient = LocalOnGradient.current
     val onGradientMuted = LocalOnGradientMuted.current
-    val blocks = remember(text) { parseBlocks(text) }
+    val incrementalParser = remember { IncrementalMarkdownParser() }
+    val blocks = remember(text) { incrementalParser.parse(text) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->

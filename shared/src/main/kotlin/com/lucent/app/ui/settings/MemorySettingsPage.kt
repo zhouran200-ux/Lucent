@@ -33,9 +33,9 @@ internal fun AssistantMemorySection(repo: SettingsRepository, local: Boolean) {
     )
     val current = MemoryTier.fromKey(savedMemoryTier)
 
-    Column(modifier = Modifier.fillMaxWidth().frostedGlass().padding(16.dp)) {
-        Text(S.memoryCostTitle, color = onGradient, fontSize = 16.sp)
-        Spacer(modifier = Modifier.height(12.dp))
+    Column(modifier = Modifier.fillMaxWidth().frostedGlass().padding(12.dp)) {
+        Text(S.memoryCostTitle, color = onGradient, fontSize = 15.sp)
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (local) {
             MemoryTierRow(
