@@ -161,6 +161,9 @@ fun NotebookChatTab(
     var temperature by remember {
         mutableFloatStateOf(prefs.getFloat("temperature_$notebookId", -1f))
     }
+    var thinkingBudget by remember {
+        mutableIntStateOf(prefs.getInt("thinking_budget_$notebookId", 0))
+    }
 
     var showDialogueSettingsDialog by remember { mutableStateOf(false) }
     var showProfileModelPickerSheet by remember { mutableStateOf(false) }
@@ -237,7 +240,8 @@ fun NotebookChatTab(
             val resolvedReasoning = ReasoningResolver.resolve(
                 preset = reasoningPreset,
                 provider = specStr,
-                model = targetModel
+                model = targetModel,
+                customBudgetTokens = thinkingBudget
             )
             val effortLabel = resolvedReasoning.displayTag
 
@@ -503,20 +507,23 @@ fun NotebookChatTab(
             )
         }
 
-        // Dialogue Settings Dialog (Custom Prompt, History Rounds, Temperature)
+        // Dialogue Settings Dialog (Custom Prompt, History Rounds, Temperature, Thinking Budget)
         if (showDialogueSettingsDialog) {
             DialogueSettingsDialog(
                 initialPrompt = systemPrompt,
                 initialHistoryRounds = historyRounds,
                 initialTemperature = temperature,
-                onSave = { p, r, t ->
+                initialThinkingBudget = thinkingBudget,
+                onSave = { p, r, t, b ->
                     systemPrompt = p
                     historyRounds = r
                     temperature = t
+                    thinkingBudget = b
                     prefs.edit()
                         .putString("prompt_$notebookId", p)
                         .putInt("history_rounds_$notebookId", r)
                         .putFloat("temperature_$notebookId", t)
+                        .putInt("thinking_budget_$notebookId", b)
                         .apply()
                     showDialogueSettingsDialog = false
                     LucentToast.show(context, "对话设置已保存")
@@ -990,12 +997,14 @@ private fun DialogueSettingsDialog(
     initialPrompt: String,
     initialHistoryRounds: Int,
     initialTemperature: Float,
-    onSave: (prompt: String, historyRounds: Int, temperature: Float) -> Unit,
+    initialThinkingBudget: Int,
+    onSave: (prompt: String, historyRounds: Int, temperature: Float, thinkingBudget: Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     var prompt by remember { mutableStateOf(initialPrompt) }
     var historyRounds by remember { mutableIntStateOf(initialHistoryRounds) }
     var temperature by remember { mutableFloatStateOf(initialTemperature) }
+    var thinkingBudget by remember { mutableIntStateOf(initialThinkingBudget) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1100,6 +1109,7 @@ private fun DialogueSettingsDialog(
                         onClick = {
                             historyRounds = 10
                             temperature = -1f
+                            thinkingBudget = 0
                         }
                     ) {
                         Text(
@@ -1211,11 +1221,92 @@ private fun DialogueSettingsDialog(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Parameter 3: 思考 Token 预算上限 (Thinking Budget)
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.White.copy(alpha = 0.05f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "思考 Token 预算上限",
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.90f)
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (thinkingBudget <= 0) Color.White.copy(alpha = 0.10f) else Color(0xFFF59E0B).copy(alpha = 0.20f),
+                                modifier = Modifier.border(
+                                    1.dp,
+                                    if (thinkingBudget <= 0) Color.White.copy(alpha = 0.20f) else Color(0xFFFBBF24).copy(alpha = 0.35f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                            ) {
+                                Text(
+                                    text = if (thinkingBudget <= 0) "自适应推荐" else "${thinkingBudget}t",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (thinkingBudget <= 0) Color.White.copy(alpha = 0.7f) else Color(0xFFFBBF24),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        val budgetOptions = listOf(
+                            0 to "自适应",
+                            2048 to "2K",
+                            4096 to "4K",
+                            8192 to "8K",
+                            16384 to "16K",
+                            32768 to "32K",
+                            65536 to "64K"
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            budgetOptions.forEach { (budgetVal, label) ->
+                                val isSelected = thinkingBudget == budgetVal
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSelected) Color(0xFFF59E0B) else Color.White.copy(alpha = 0.08f),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { thinkingBudget = budgetVal }
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.padding(vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) Color(0xFF161622) else Color.White.copy(alpha = 0.85f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Save Action Button
                 Button(
-                    onClick = { onSave(prompt, historyRounds, temperature) },
+                    onClick = { onSave(prompt, historyRounds, temperature, thinkingBudget) },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                     modifier = Modifier

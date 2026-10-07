@@ -1,6 +1,6 @@
 <div align="center">
 
-[🇨🇳 简体中文](./docs/README.zh-CN.md) · [🇯🇵 日本語](./docs/README.ja.md) · [🇰🇷 한국어](./docs/README.ko.md)
+[🇨🇳 简体中文](./README.md) · [English](./docs/README.en.md) · [🇯🇵 日本語](./docs/README.ja.md) · [🇰🇷 한국어](./docs/README.ko.md)
 
 </div>
 
@@ -8,12 +8,9 @@
 
 # 𝓛𝓾𝓬𝓮𝓷𝓽
 
-### Modern · Minimalist · Quietly Overqualified
+### 现代 · 极简 · 恰到好处的深厚内功
 
-**A notes-and-tasks application whose assistant can genuinely touch your data — sealed inside an
-encrypted database on your own device, conversant in four languages, and assembled from first line
-to last by pressing a single button on GitHub. It arrives in pocket and desk editions alike — an
-Android APK and a Windows installer — sharing one heartbeat, ready to roam further.**
+**一款让 AI 助手能够真正触达你数据的本地笔记与知识库应用。所有的文字与数据全部封存在你设备本地的加密数据库中；支持四大语言；配备面向 2026 年新一代模型的“三层深度推理架构”与毫秒级流式调度引擎；在轻盈如晨雾的流体毛玻璃质感之下，安放你对隐私、秩序与思考的全部挑剔。**
 
 ![Lucent — Platform, Build, Interface, Assistant, Privacy, License](badges/badges.svg)
 
@@ -21,286 +18,156 @@ Android APK and a Windows installer — sharing one heartbeat, ready to roam fur
 
 ---
 
-## The general idea
+## 设计初衷
 
-Most note-taking applications extend a generous invitation to choose any two of three virtues: the
-beautiful one, the private one, or the intelligent one. Pick your pair and resign yourself to the
-remainder. Lucent politely declines the bargain. Everything you write is sealed in an encrypted
-database that never departs your device. The assistant may be a cloud model you pay for, a model
-running on the very machine before you, or nothing whatsoever. And the whole affair is assembled
-without a single line of local tooling: press a button on GitHub, wander off, and an APK or a
-Windows installer will be waiting when you return.
+大多数笔记应用总在礼貌地要求用户在三种美德中“三选其二”：美观、隐私、或是智能。选好你的组合，然后对剩下的缺陷逆来顺受。
 
-## One app, wherever you put it
+Lucent 委婉地谢绝了这种妥协。
 
-Lucent is **one product with a single shared heart**: the house rule demands that every feature
-inhabit every platform it ships to. Your pocket and your desk speak precisely the same language:
+你写下的每一个字，都保存在绝不离开你设备本地的加密数据库中。你的 AI 助手可以是你自己配置的云端顶尖大模型（OpenAI、Anthropic Claude、Google Gemini、DeepSeek、通义千问等），也可以是设备本地离线运行的轻量模型，或者干脆彻底静默——倘若你完全不需要它，这依然是一款纯粹、敏捷且极具美感的离线笔记应用。
 
-- **`:app`** — the Android application (Kotlin and Jetpack Compose, Room over SQLCipher, llama.cpp
-  through the NDK). Built by `.github/workflows/build.yml` into a signed release APK.
-- **`:desktop`** — the desktop application, Windows today (Compose for Desktop, pure JVM, SQLite over
-  JDBC, llama.cpp compiled as a DLL). Built by `.github/workflows/build-windows.yml` into a
-  double-click `.exe` installer.
-- **`:shared`** — the single source tree both platforms compile: business logic, data, most of the
-  interface, one translation catalogue in four languages. Edit once; both machines change.
+---
 
-Everything that can be shared lives in `shared/`; the few things that cannot — `SettingsRepository`,
-`Daos`/`Db`, `DocumentExport` and the largest screens — remain once per platform because their seams
-run deep. The native build stages are each optional, so a stumble in one leaves you with a working
-app rather than a waiting room.
+## 凝练的工程架构：单一真相源
 
-## The assistant with hands, not merely opinions
+Lucent 遵循严谨的现代 Android 与 Kotlin 多端工程规范，坚持以 `shared` 为核心代码真相源：
 
-This is the feature that defines Lucent. Bring your own model — OpenAI, Anthropic and Google request
-shapes are spoken fluently, several profiles kept and switched in one tap — or run the whole thing on
-the device. Say nothing at all and the assistant simply isn't there; the notes app loses nothing.
+- **`:app`** —— Android 专属壳工程（Kotlin、Jetpack Compose、Room over SQLCipher、通过 NDK 接入的轻量原生加速库）。负责生命周期、桌面微件（Widgets）、权限与系统级通道。
+- **`:shared`** —— 承载应用核心灵魂的单一源码目录：所有业务逻辑、数据库实体、核心界面、2026 三层深度推理调度系统、时间窗流式渲染引擎以及全套四语言翻译。
+- **`rust/`** —— 极速密码学加速器，通过 JNI 实现关键备份与密文处理，同时保留 100% 等效的纯 Kotlin 安全降级实现，确保在任何构建环境下均能顺畅编译。
 
-What makes it worth having is that it can *act*: create, read, edit, colour, pin, archive and delete
-notes; create, complete, reopen, schedule and prioritise tasks; search with a real filter language;
-and attach, rename or remove files. Before it alters anything it shows you precisely what it
-intends — in your own language, in a dialog that is itself the editor, with every arguable field
-editable before a single byte is written. Your word is always the last one spoken. Someone with an
-opinion and no hands is a chat; this is a butler who has been instructed to knock first.
+---
 
-Conversations run as long as you wish and travel with you, and the conversation you last inhabited is
-the one that opens. Replies arrive as proper Markdown — headings, lists, code — with the model's
-reasoning folded away above them until you ask for it, and one line per tool call in the trace,
-each with the time it took. Four panels sit above the conversation: the todo list the assistant
-keeps as it works, the plan it is following, the background jobs it has started, and the sub-agents
-it has called upon, each of which can be watched live, stopped, or sent an extra instruction. Give it
-a goal and it will press toward it, round after round, until the goal is done, paused, or
-honestly reported as blocked.
+## 懂思考、有分寸的随身助手
 
-## The workshop behind the assistant
+这是定义 Lucent 体验的核心。带上你自己的 API 密钥——原生支持 OpenAI、Anthropic Claude、Google Gemini、DeepSeek 与通义千问协议，多套方案一键无缝切换。
 
-Notes and tasks are the front of house. Behind them, a switch away in Settings → Advanced → Toolkit,
-lies a workshop the assistant is permitted to enter. It has a workspace folder of your choosing — the
-picker browses the whole device, not merely shared storage — and inside
-it, real tools: read, write, search, edit with a diff, snapshot and roll back. It can run commands
-with a timeout and a working directory, keep long ones as background jobs, and show you the output.
-It can create and edit Word, Excel and PowerPoint files — the formats are written natively, by
-Lucent, with no office library underneath — and read PDFs, render them to pictures, split and merge
-them. It can clone, diff, commit and push with Git, raise and read GitHub issues, pull requests and
-CI logs, fetch and read web pages, query SQLite, and run a job inside Docker, PRoot or a plain
-shell, whichever the machine can offer.
-
-It remembers three ways: this conversation, this project, and you. It keeps a plan you can watch,
-writes down skills so it ceases re-learning your conventions, and can summon sub-agents when a
-task is heavy enough to warrant them. Sub-agents, snapshots, device control and screen access share
-one page of their own: Toolkit, then Assistant abilities.
-
-Anything large stays out of the installer: a Linux userland, Python with its document libraries,
-LibreOffice, Node.js, a browser engine, OCR and media tools are listed as plugins, downloaded only
-if you ask, from the project's own servers or a fast mirror, whichever answers first. Installing one
-requires a shell — the Linux environment bundled inside Lucent on a phone, winget on Windows — and Lucent looks before it leaps: each
-plugin is inspected before anything is downloaded, so a missing shell, an unwritable download folder,
-or a silent mirror is named before it costs bandwidth, not after. When a
-download or an install fails,
-Lucent opens a dialog that names the reason, shows the shell's own output and lists what to fix. A
-download in progress is a button press away from stopping, and stopping it leaves nothing behind.
-Permissions
-are a page of their own — read, write, delete, commands, network, Git, GitHub, browsing, the space
-beyond the workspace, and the device itself — each set to allow, ask or block, and every tool call
-written to an activity log you can read and clear.
-
-On a phone the same workshop reaches the device: read the screen, tap, type, swipe, take a
-screenshot, list and open apps, read notifications, use the clipboard and the flashlight, and run
-real command-line tools inside the bundled Linux environment. It also speaks MCP, so any server you point it at becomes
-part of the toolkit.
-
-## Notes that remember what they used to be
-
-Every meaningful edit is snapshotted, so you can always see what a note once said and restore it
-when a confident rewrite turns out to have been mere optimism. Type `[[Shopping list]]` and it becomes a
-tappable link; point at a title that does not yet exist and the link glows red until a tap graciously
-brings the note into being. Markdown renders when you want it and stays precisely as typed when you
-do not. Checklists are first-class citizens: reword items in place, open a spacious pop-out editor
-when a quick item develops ambitions. Tags, colours, pinning, individually encrypted attachments,
-rich text, a doodle canvas for thoughts words cannot reach, and a private area with its own lock —
-with drafts beside the trash, so an unfinished thought is never an abandoned one.
-
-A blank note offers four one-tap starters — journal, meeting, project idea, checklist — and then the
-real trick: templates of your own. Save one and it greets you on every future blank page; long-press
-to edit or retire any of them, built-ins included.
-
-## Tasks with due dates that actually mean something
-
-Subtasks, priorities, repeat schedules, and reminders that survive a reboot. Due dates are parsed
-from ordinary language — *next Friday at 6* becomes a genuine timestamp with a genuine alarm — and
-repeat cadences are first-class rather than a clever sentence that eventually surrenders. Completing
-a task ticks its whole checklist off with it, and completed tasks retire to a screen of their own.
-
-## Or run the whole thing on the device itself
-
-Import a `.gguf` file (or a `.zip` with one inside) and the assistant answers using llama.cpp running
-directly on the device — no account, no API key, no network, and the model unloaded the moment you
-leave the app. Roughly 1–4 GB Q4 models hit the sweet spot on a phone; a desktop can afford greater
-ambition. Tools are opt-in locally and GPU acceleration is a choice made after a plain warning: the
-CPU always works, and a GPU that disagrees falls back gracefully. Vision is optional too — import an
-mmproj file and the assistant will study a photograph and discuss it like a mildly clairvoyant
-librarian.
-
-## Four languages, switched without ceremony
-
-English, 中文, 日本語, 한국어 — every screen, dialog, date format and template. Switch the language
-and the whole app follows on the same frame, because there is one catalogue and it is what the
-interface reads: each word kept once, by construction rather than by care.
-
-## The look of it: made, unashamedly, of glass
-
-A living gradient drifts behind frosted panels that blur whatever passes beneath them, never quite
-repeating itself, at a cost the device agreed to in advance. A generous spread of palettes across
-eight style families, with an auto-cycle or random companion that ambles through them. Light, dark,
-system and a gallery of Monet-tinted themes — and on Android 12 or later the palette borrows your
-wallpaper's palette for the day. Widgets bring the same glassy surface to your launcher; on Windows
-the app slips into the tray and a sidebar takes over from the bottom tab bar, because a wide monitor
-deserves better than a phone layout stretched sideways.
-
-## The lock that counts, and the backup that leaves with you
-
-The app lock is a real brute-force policy rather than a polite request: escalating cooldowns, a
-persisted counter that survives reboots, an optional security question, an optional self-destruct,
-and a fingerprint (Android) or Windows Hello (Windows) that is politely out of office for the whole
-cooldown. The database is encrypted at rest, attachments individually, and backups are a single
-password-protectable `.lcb` file carrying notes, tasks, history, chats, attachments and settings
-across devices — previewed before a single item is changed, and armed to run automatically. A backup
-nobody can read is a keepsake rather than a backup, so this one is read on the way out and again on
-the way in.
-
-## Privacy that is structural, not merely promised
-
-Nothing leaves the device until you export it or give a model a reason to look. Share-sheet
-integration is off by default; diagnostics are off by default and kept locally; the assistant
-services you connect are entirely your choice; cloud mirroring is a module you configure yourself,
-over WebDAV. The one deliberate exception to encryption — exporting to Markdown, Word, PDF or
-Excel — is a file you can open anywhere else, which is rather the point.
-
-## Rust, but only where it earns its keep
-
-Two hot paths are written in Rust and reached through JNI — the PBKDF2 and AES-256-GCM routines
-behind backups and attachment encryption, and the mathematics behind the drifting background. Both
-fall back to identical Kotlin when the native library isn't present, so the app is never held
-hostage by a compiler.
-
-## Building it (yes, from a phone, in your dressing gown)
-
-No Android Studio, no local SDK, no command line. Push to GitHub, open **Actions**, run the workflow
-you want, and download the result — a properly signed release or a double-click installer. The
-workflows live in the repository, so the recipe is in the box rather than in the author's head, and
-the build is as inspectable as the code.
-
-## Project layout
+### 1. 2026 三层深度推理架构 (Three-Layer Reasoning)
+面对 2026 年后各大模型厂商在“思考（Thinking）协议”上的严重碎片化，Lucent 彻底摈弃了将底层参数直接暴露在 UI 上的粗糙做法，建立了工业级的四段式映射流水线：
 
 ```
-shared/       THE single shared source tree — business logic and most UI live here ONCE, and both
-              :app and :desktop compile it. Edit a file here to change both platforms together.
-app/          Android module (:app) — Activity shell, Room database layer, JNI bridges, widgets,
-              and other genuinely Android-bound code only
-desktop/      Desktop module (:desktop) — Compose for Desktop shell, the android.* JVM shims,
-              the JDBC database core, native CMake build for the engine DLL
-rust/         The Rust accelerator (shared across platforms)
-.github/      build.yml (Android APK), build-windows.yml (Windows installer), check.yml
+用户产品意图 (ReasoningPreset)
+   │  自动 (AUTO) · 极速 (FAST) · 标准 (BALANCED) · 深度 (DEEP) · 极致 (MAXIMUM)
+   ▼
+跨模型语义对齐门面 (ReasoningResolver)
+   │
+   ├──────────────────────────────┐
+   ▼                              ▼
+模型能力注册表 (Capability Registry)  厂商原生适配器 (Provider Adapter)
+   │  支持状态 · 协议类型 · 阶梯映射        │  OpenAI · Claude · Gemini · DeepSeek
+   └──────────────┬───────────────┘
+                  ▼
+          底层原生 Wire Format
+   (reasoning.effort / thinkingLevel / output_config.effort / budget_tokens)
 ```
 
-## Where it goes next
+- **第一层：用户意图层 (`ReasoningPreset`)**：
+  提供“✨ 自动”、“⚡ 极速”、“⚖️ 标准”、“🧠 深度”、“🚀 极致”五档产品意图。其中 **AUTO 坚持零参数侵入原则**，绝不武断硬编码为 medium，百分之百交由模型发挥最佳原生自适应策略。
+- **第二层：模型能力注册表 (`ModelCapabilityRegistry`)**：
+  以数据结构精准定义各模型的思考协议（如区分原生推理模型 `o1`/`gpt-6`/`deepseek-r1`/`gemini-3.5-flash` 与纯对话模型 `gpt-4o`/`gemini-1.5`）。支持在拉取模型列表时**热加载（Hot-reload）**动态能力元数据。
+- **第三层：厂商原生参数映射 (`ReasoningMapper`)**：
+  - **OpenAI / ChatGPT**：精准注入 `reasoning_effort` 与 `reasoning: { mode: "pro", effort }`；
+  - **Anthropic Claude**：自动区隔 Claude 3.7+ 的 `output_config.effort` 与 Claude 3.5 的 `budget_tokens`；
+  - **Google Gemini**：在 `generationConfig.thinkingConfig` 中精准注入 `thinkingLevel`；
+  - **DeepSeek**：遵循官方服务端规范，实现从标准档向 `high` 的平滑阶梯映射；
+  - **未知中转端点**：启发式兜底，不产生非法字段，杜绝 400 报错。
+- **正交的思考 Token 预算控制**：
+  在对话设置中，支持为高级用户提供独立的思考 Token 预算上限选项（2K 至 64K），与思考强度解耦，实现对生成成本与推演深度的双重掌控。
 
-Lucent is a great deal of application for a to-do list, and it has never once apologised for the
-fact. Notes with memory, tasks with teeth, an assistant with hands and manners, encryption that
-honours its promises and a surface worth contemplating. Take it for a week and observe what you
-notice; take it for a month, and notice that you stopped noticing.
+---
 
-## With thanks to the giants whose shoulders these are
+## 毫秒级帧调度流式引擎
 
-Underneath the glass, Lucent is a great deal of other people's excellent work. It would be poor
-manners — and, in one or two cases, an outright licence violation — not to say so out loud. The full
-texts and copyright notices live in **[`THIRD-PARTY-NOTICES.md`](./docs/THIRD-PARTY-NOTICES.md)**;
-the short version, with our gratitude, is this:
+在长文本问答与实时思维链推演时，高频的 SSE 增量事件如果直接触发 Compose 重组，会引发剧烈的掉帧与电量消耗。
 
-| Borrowed brilliance | Doing the job of | Under |
+Lucent 实现了生产级的 **`StreamUiScheduler`** 流式刷新调度器：
+
+1. **协议层颗粒度解耦**：底层 SSE 逐行解析，在网络层将正文增量（`deltaText`）与思考链增量（`deltaReasoning`）清晰拆解；
+2. **时间窗批量消费**：采用“增量 StringBuilder 缓冲区 + 35ms 帧时间窗”的批量消费机制，高频 Token 进入缓冲区，UI 仅按人眼最舒适的节奏批量更新 State；
+3. **Markdown 渲染防冲击**：避免长文本频繁全量重复解析 Markdown AST，在保障打字机实时灵动感的同时，确保 60/120 帧极致流畅；
+4. **思维链折叠展示**：思考过程在正文上方以深色毛玻璃卡片清晰折叠，实时标注用时与原生模型标签，支持一键展开回顾严密的逻辑推演。
+
+---
+
+## 沉淀记忆的本地笔记本与知识库
+
+笔记本不仅是分类夹，更是与 AI 协作的专属上下文空间：
+
+- **无损自动提取 Markdown**：向笔记本添加参考文档时，本地静默提取标题、段落、层级列表与表格，自动转换为排版工整的 Markdown 知识库；
+- **全文本 100% 完整挂载（零截断原则）**：顺应 2026 年新一代模型的百万级超长上下文特性，笔记本内的全部关联资料全文注入系统提示词，绝不进行截断与信息压缩，确保问答论据精准详实；
+- **版本快照与时光倒流**：每一次关键修改都会在本地保留历史快照，随时可以对比变更并一键恢复，再也不必担心误操作丢失灵感；
+- **双向链接与灵活排版**：输入 `[[笔记标题]]` 即可建立双向关联；支持标签、多色封面标记、置顶与归档。
+
+---
+
+## 真正管用的任务与待办
+
+- **自然语言解析**：在输入框随手输入“下周五下午三点开会”，即可自动解析为精确的截止时间戳与系统级提醒闹铃；
+- **多层级清单与周期循环**：支持子任务、优先级以及重启后依然存活的系统级提醒，周期循环任务绝不半途失效；
+- **任务归档**：完成待办时，其所属检查项联动划掉，历史任务平滑归档至专属视图。
+
+---
+
+## 流体玻璃美学与现代交互
+
+- **流体渐变与动态虚化**：采用基于 Haze 的现代磨砂毛玻璃材质，搭配随韵律缓缓舒展的动态流体背景，优雅耐看；
+- **深色沉浸感与多色主题**：预置多组精心调配的色彩家族，支持浅色、深色、跟随系统，并在 Android 12+ 上自然融合壁纸取色（Material You / Monet）；
+- **生产级软键盘避让机制**：
+  - 彻底规避 Android Compose 中常见的底栏与键盘双重 Insets 导致的“悬空空白断层”缺陷；
+  - 键盘弹起时智能平滑吸附最新消息，并在轻触消息列表空白处时即刻顺畅收起，交互体验极其温润。
+
+---
+
+## 从底层守护的隐私与锁
+
+- **静态全盘加密**：数据库底层采用 SQLCipher（AES-256）全盘加密，即使设备被物理读取也无法窥见明文；
+- **强固的应用防护**：阶梯式防暴力破解冷却时间、重启后依然维持的计数器、支持指纹生物识别认证；
+- **自主可控的数据备份**：单文件密码保护的 `.lcb` 备份格式，完整打包笔记、待办、对话记录与偏好设置，导入时具备预检确认机制，数据迁徙自由无拘。
+
+---
+
+## 本地代码目录结构
+
+```
+shared/       核心业务与 UI 源码目录 —— 业务逻辑、Compose UI、Room、数据模型与 2026 推理映射器
+app/          Android 原生模块 —— Activity 宿主、平台配置、原生通道与 Android 平台实现
+rust/         Rust 原生加速层（JNI 密码学计算与安全数学支持）
+.github/      CI/CD 工作流定义文件
+```
+
+---
+
+## 构建与测试验证
+
+应用采用现代 Gradle（Kotlin DSL）构建体系：
+
+- **编译全工程**：
+  ```bash
+  gradle assembleDebug
+  ```
+- **执行完整单元测试与架构验证套件**（含三层推理映射与流式调度器测试）：
+  ```bash
+  gradle :app:testDebugUnitTest
+  ```
+
+---
+
+## 开源致谢与借景之美
+
+在精致的界面之下，Lucent 深深得益于开源社区的优秀成果：
+
+| 开源项目 | 承担职责 | 许可证 |
 |---|---|---|
-| [Kotlin](https://github.com/JetBrains/kotlin) & [Coroutines](https://github.com/Kotlin/kotlinx.coroutines) | the language, and its patience with concurrency | Apache-2.0 |
-| [Jetpack Compose & AndroidX](https://developer.android.com/jetpack/androidx) | the Android half of the interface | Apache-2.0 |
-| [Compose Multiplatform & Skiko](https://github.com/JetBrains/compose-multiplatform) | the desktop half of the interface | Apache-2.0 |
-| [Material Icons](https://github.com/google/material-design-icons) | the small pictures that mean things | Apache-2.0 |
-| [Haze](https://github.com/chrisbanes/haze) — © Chris Banes | all that fashionable blur | Apache-2.0 |
-| [OkHttp](https://github.com/square/okhttp) — © Square, Inc. | talking to the cloud | Apache-2.0 |
-| [Apache PDFBox](https://pdfbox.apache.org/) | PDFs on the desktop | Apache-2.0 |
-| [SQLite JDBC](https://github.com/xerial/sqlite-jdbc) — © Taro L. Saito et al. | the desktop's way into SQLite | Apache-2.0 |
-| [Skia](https://skia.org/) | the drawing underneath both halves of the interface | BSD-3-Clause |
-| [SQLite](https://www.sqlite.org/) | the database itself, quietly running the world | Public Domain |
-| [SQLCipher](https://www.zetetic.net/sqlcipher/) — © Zetetic LLC | the lock on that database, on Android | BSD-style |
-| [llama.cpp & GGML](https://github.com/ggml-org/llama.cpp) — © Georgi Gerganov & contributors | an entire language model, on your own silicon | MIT |
-| [Shizuku API](https://github.com/RikkaApps/Shizuku-API) — © Rikka and contributors | the privileged shell, when a phone can offer one | MIT |
-| [org.json](https://github.com/stleary/JSON-java) — © JSON.org | reading JSON on the desktop | JSON License |
-| [Great Vibes](https://github.com/googlefonts/great-vibes) — © The Great Vibes Pro Project Authors | the script face the pen draws with | OFL-1.1 |
+| [Kotlin](https://github.com/JetBrains/kotlin) & [Coroutines](https://github.com/Kotlin/kotlinx.coroutines) | 开发语言、协程并发与异步流体系 | Apache-2.0 |
+| [Jetpack Compose & AndroidX](https://developer.android.com/jetpack/androidx) | 现代化响应式声明式 UI 框架 | Apache-2.0 |
+| [Material Icons](https://github.com/google/material-design-icons) | 视觉符号与操作图标 | Apache-2.0 |
+| [Haze](https://github.com/chrisbanes/haze) | 现代毛玻璃磨砂渲染支持 | Apache-2.0 |
+| [OkHttp](https://github.com/square/okhttp) | 跨厂商 HTTP 与 SSE 长连接网络流通信 | Apache-2.0 |
+| [SQLite](https://www.sqlite.org/) & [SQLCipher](https://www.zetetic.net/sqlcipher/) | 本地数据库引擎与底层静态加密锁 | Public Domain / BSD-style |
+| [Room](https://developer.android.com/training/data-storage/room) | 本地持久化对象关系映射与响应式查询 | Apache-2.0 |
 
-The Model Context Protocol is an open specification from Anthropic, licensed under the MIT Licence;
-Lucent's client is an original implementation, and any MCP server you point it at is third-party
-software under its own terms. The Word, Excel and PowerPoint readers and writers are original
-implementations of Office Open XML built on the platform's own zip and XML libraries — no office
-library, and no third-party PDF library, is bundled.
+---
 
-### And the tools you may fetch, at your word
+## 许可证 (License)
 
-Lucent ships no heavyweight toolchains and no office suite. From the plugins page, or by asking the
-assistant, it can fetch a Linux userland, a document converter or a media tool straight from upstream
-into storage you own. None of them is part of the package, none is linked against, and each stays
-under its own licence: **[the notices file](./docs/THIRD-PARTY-NOTICES.md)** carries the full list,
-which runs from PRoot and Ubuntu Base through LibreOffice, Python with its document
-libraries, Node.js and Playwright, to Git, Pandoc, FFmpeg, ripgrep, 7-Zip, Tesseract, ImageMagick,
-qpdf, Poppler and yt-dlp. Lucent's thanks go to every one of those authors, and the choice to
-install any of them — along with the licence that comes with it — is yours.
-
-### And the notes apps we studied
-
-Six mature notes-and-tasks applications were read, poked, and taken to tea for this project — not
-for their code, which Lucent does not bundle, but for the things their authors figured out first.
-Their fingerprints are on Lucent's structure and its manners, rather than on its binaries, and a
-design debt repaid loudly is the least we can do:
-
-| Studied for | What Lucent borrowed | Their words |
-|---|---|---|
-| [Quillpad](https://github.com/quillpad/quillpad) | the two-level drawer — pin where you can reach it, configuration one level down | GPL-3.0 |
-| [Omni-Notes](https://github.com/federicoiosue/Omni-Notes) | the honesty of system pickers and long-press actions that explain themselves | GPL-3.0 |
-| [OpenNote-Compose](https://github.com/YangDai2003/OpenNote-Compose) | the dynamic-colour priority model — wallpaper first, stored choices never destroyed | GPL-3.0 |
-| [AppFlowy](https://github.com/AppFlowy-IO/AppFlowy) | saying what is happening in the open, in the settings page and elsewhere | AGPL-3.0 |
-| [Logseq](https://github.com/logseq/logseq) | that a notes app should feel like a place, not a dashboard | AGPL-3.0 |
-| [MarkLeaf](https://github.com/jeiel85/markleaf-android) | that the editorial surface stays calm while the configuration waits its turn | Apache-2.0 |
-
-### And the harness we took after
-
-Lucent's assistant follows the tool vocabulary and the working habits of the **DeepSeek Harness**
-(dsh), and of **[DSHA](https://github.com/DSH-APP/DSHA)** — MIT licensed — the Android project that
-puts that harness on a phone without root and without Termux. Lucent bundles neither of them: the
-tools, the loop, the panels and the goals are its own Kotlin, written to behave the way those two
-established. Exit codes arrive as results rather than errors, a file is read before it is written,
-a goal keeps its own rounds, helpers can be talked to and stopped, and anything arguable is asked
-about first. The pattern is theirs and is credited here; the code is ours.
-
-Lucent's own licence governs everything you install; the projects above are honoured as sources of
-ideas and arrangements, not as included works. The structure is ours; the courtesy is theirs.
-
-A particular word for **SQLCipher**, whose BSD-style licence asks — not unreasonably, given it is
-the thing keeping your diary shut — that its copyright and notice be reproduced somewhere a user can
-actually find them. So they are, in the notices file above; if you ship a build of Lucent, keep them
-findable. The one font Lucent carries itself is Great Vibes, the script face of the pen on the splash
-screen, bundled unmodified under the SIL Open Font License with its reserved name intact.
-
-## Licence, and the one small thing it asks in return
-
-Lucent is released under the **MIT Licence** — see [`LICENSE`](./LICENSE). Do very nearly whatever
-you like with it: use it, change it, fold it into something commercial, build something better on
-top and never write to thank us. The single, entirely reasonable condition is that our copyright
-notice and the licence text come along for the ride in any copy or substantial portion of the code —
-so if you reuse Lucent, keep the `LICENSE` file (and the name on it) with what you ship, and we are
-square. The third-party components above make their own, similarly modest requests; honour those in
-the same spirit and everyone stays friends.
-
-Privacy policy: **[`PRIVACY/PRIVACY.md`](https://github.com/Yuan0-o/Lucent/blob/main/PRIVACY/PRIVACY.md)** — what Lucent stores, what leaves your device, and every control you hold.
-
-## Contributing
-
-Should you be seized by the urge to improve Lucent, we should be quietly delighted. Bug reports,
-thoughtful suggestions, and pull requests submitted with good grace are entirely welcome. We ask
-only that everyone remain strictly civil, keep the tea warm, and treat fellow contributors with the
-courtesy one expects in a respectable reading room.
+Lucent 基于 **[MIT 许可证](./LICENSE)** 开源发布。你可以自由使用、修改、分发甚至用于商业项目，唯一的请求是保留原版权声明与许可证文本。

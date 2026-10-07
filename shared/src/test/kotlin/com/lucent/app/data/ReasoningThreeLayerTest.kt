@@ -145,5 +145,42 @@ class ReasoningThreeLayerTest {
         val dynamicModel = ModelCapabilityRegistry.findOrRegister("custom-reasoner-v1", "openai")
         assertTrue(dynamicModel.reasoning.supported)
         assertEquals(ReasoningControl.OPENAI_EFFORT, dynamicModel.reasoning.control)
+
+        val all = ModelCapabilityRegistry.getAll()
+        assertTrue(all.size >= 15)
+    }
+
+    @Test
+    fun testCustomThinkingBudget() {
+        // Claude with custom 8192 budget
+        val claudeCustom = ReasoningResolver.resolve(
+            preset = ReasoningPreset.DEEP,
+            provider = "anthropic",
+            model = "claude-3-7-sonnet",
+            customBudgetTokens = 8192
+        )
+        assertEquals(8192, claudeCustom.claudeBudgetTokens)
+        assertTrue(claudeCustom.displayTag.contains("8192t"))
+
+        // Gemini with custom 4096 budget
+        val geminiCustom = ReasoningResolver.resolve(
+            preset = ReasoningPreset.BALANCED,
+            provider = "google",
+            model = "gemini-3.5-flash",
+            customBudgetTokens = 4096
+        )
+        assertEquals(4096, geminiCustom.geminiThinkingBudget)
+        assertTrue(geminiCustom.displayTag.contains("4096t"))
+
+        // AUTO with custom budget: activates explicit token budget
+        val autoCustom = ReasoningResolver.resolve(
+            preset = ReasoningPreset.AUTO,
+            provider = "anthropic",
+            model = "claude-3-7-sonnet",
+            customBudgetTokens = 16384
+        )
+        assertFalse(autoCustom.isAuto)
+        assertEquals(16384, autoCustom.claudeBudgetTokens)
+        assertTrue(autoCustom.displayTag.contains("16384t"))
     }
 }

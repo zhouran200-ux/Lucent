@@ -276,6 +276,14 @@ object ModelCapabilityRegistry {
         registry[definition.id.lowercase()] = definition
     }
 
+    fun registerBatch(definitions: List<ModelDefinition>) {
+        definitions.forEach { register(it) }
+    }
+
+    fun getAll(): List<ModelDefinition> {
+        return registry.values.toList()
+    }
+
     fun find(modelId: String): ModelDefinition? {
         val clean = modelId.trim().lowercase().removePrefix("models/").substringAfterLast('/')
         return registry[clean]
@@ -386,10 +394,11 @@ object ReasoningResolver {
     fun resolve(
         preset: ReasoningPreset,
         provider: String,
-        model: String
+        model: String,
+        customBudgetTokens: Int = 0
     ): ResolvedReasoningConfig {
-        // 关键原则 ①：AUTO 必须代表“零原生参数侵入，交由模型自适应最佳策略”，绝对不硬编码为 medium
-        if (preset == ReasoningPreset.AUTO) {
+        // 关键原则 ①：AUTO 且未指定自定义预算时，必须代表“零原生参数侵入，交由模型自适应最佳策略”，绝对不硬编码为 medium
+        if (preset == ReasoningPreset.AUTO && customBudgetTokens <= 0) {
             return ResolvedReasoningConfig.AUTO
         }
 
@@ -403,6 +412,22 @@ object ReasoningResolver {
             ReasoningControl.NONE -> fallbackMapper
         }
 
-        return mapper.map(preset, modelDef)
+        val baseConfig = mapper.map(preset, modelDef)
+        if (customBudgetTokens > 0) {
+            val budgetTag = "预算 ${customBudgetTokens}t"
+            val display = if (baseConfig.displayTag.isNotBlank() && baseConfig.displayTag != "原厂自适应") {
+                "${baseConfig.displayTag} · $budgetTag"
+            } else {
+                "自适应 · $budgetTag"
+            }
+            return baseConfig.copy(
+                isAuto = false,
+                claudeBudgetTokens = customBudgetTokens,
+                geminiThinkingBudget = customBudgetTokens,
+                displayTag = display
+            )
+        }
+
+        return baseConfig
     }
 }

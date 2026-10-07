@@ -185,7 +185,39 @@ object LlmClient {
                 val item = dataArray.optJSONObject(i)
                 var id = item?.optString("id", item.optString("name", "")) ?: dataArray.optString(i)
                 if (spec == ApiSpec.GOOGLE) id = id.removePrefix("models/")
-                if (id.isNotBlank()) ids.add(id.trim())
+                if (id.isNotBlank()) {
+                    val trimmedId = id.trim()
+                    ids.add(trimmedId)
+                    // Dynamic capability discovery & registration
+                    val reasoningObj = item?.optJSONObject("reasoning")
+                        ?: item?.optJSONObject("capabilities")?.optJSONObject("reasoning")
+                    if (reasoningObj != null) {
+                        val supported = reasoningObj.optBoolean("supported", true)
+                        val controlStr = reasoningObj.optString("control")
+                        val control = when (controlStr.lowercase()) {
+                            "openai_effort", "effort" -> com.lucent.app.data.ReasoningControl.OPENAI_EFFORT
+                            "anthropic_effort" -> com.lucent.app.data.ReasoningControl.ANTHROPIC_EFFORT
+                            "anthropic_budget" -> com.lucent.app.data.ReasoningControl.ANTHROPIC_BUDGET
+                            "gemini_thinking_level", "thinking_level" -> com.lucent.app.data.ReasoningControl.GEMINI_THINKING_LEVEL
+                            "deepseek_effort" -> com.lucent.app.data.ReasoningControl.DEEPSEEK_EFFORT
+                            "none" -> com.lucent.app.data.ReasoningControl.NONE
+                            else -> if (spec == ApiSpec.GOOGLE) com.lucent.app.data.ReasoningControl.GEMINI_THINKING_LEVEL else com.lucent.app.data.ReasoningControl.OPENAI_EFFORT
+                        }
+                        com.lucent.app.data.ModelCapabilityRegistry.register(
+                            com.lucent.app.data.ModelDefinition(
+                                id = trimmedId,
+                                provider = spec.name,
+                                reasoning = com.lucent.app.data.ReasoningCapability(
+                                    supported = supported,
+                                    control = control,
+                                    isAdaptive = reasoningObj.optBoolean("adaptive", true)
+                                )
+                            )
+                        )
+                    } else {
+                        com.lucent.app.data.ModelCapabilityRegistry.findOrRegister(trimmedId, spec.name)
+                    }
+                }
             }
             Result.success(ids.distinct())
         } catch (e: Exception) {
@@ -601,6 +633,10 @@ object LlmClient {
                                 })
                             } else if (reasoningConfig.openAiEffort != null) {
                                 put("reasoning_effort", reasoningConfig.openAiEffort)
+                            }
+                            val budget = reasoningConfig.claudeBudgetTokens ?: reasoningConfig.geminiThinkingBudget
+                            if (budget != null && budget > 0) {
+                                put("max_completion_tokens", budget)
                             }
                         }
                     }
